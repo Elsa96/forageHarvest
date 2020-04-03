@@ -16,8 +16,8 @@ int smax = 255;
 int vmin = 46;
 int vmax = 255;
 
-Detection::Detection(Mat image) {
-    srcImage = image.clone();
+Detection::Detection(Mat &image) {
+    srcImage = image;
     dstImage = srcImage.clone();
 }
 
@@ -25,14 +25,16 @@ void Detection::process() {
 
     Mat mask = srcImage.clone();
     HSVFilter(srcImage, mask);
-
     borderHough(mask, dstImage);
-
-
+    fallPointFind();
 }
 
-Point2f* Detection::getVertex() {
-    return vertex2D;
+vector<Point2f> Detection::getKeyPoints() {
+    for (int i = 0; i < 4; ++i)
+        keyPoints.push_back(vertex2D[i]);
+    for (int j = 0; j < 6; ++j)
+        keyPoints.push_back(fallPoint2D[j]);
+    return keyPoints;
 }
 
 void Detection::show() {
@@ -107,7 +109,7 @@ void Detection::borderHough(Mat inputImage, Mat &outputImage) {
     //判断有几条直线
     if (top4vertexSet[0].crossTimes > 4 * top4vertexSet[1].crossTimes) {  //TODO 参数4
         vector<Vertex> top9vertexSet;
-        cout << "只有两条直线，并相交" << endl;
+        cout << "只有两条直线，并相交" << endl;  // TODO 只有三个交点的情况要忽略
         mostIntersections(lines2Sides, top9vertexSet, 9, imgW, imgH);
         vector<Vertex> vertexResult;
         pointColor(outputImage, top9vertexSet, vertexResult);
@@ -358,10 +360,33 @@ void Detection::pointColor(Mat image, vector<Vertex> inputVertexSet, vector<Vert
     }
 }
 
-void Detection::drawPoints(vector<Vertex> vertexSet, Mat &outputImage) {
-    for (int i = 0; i < vertexSet.size(); i++) {
-//        cout << "(" << vertexSet[i].x << "," << vertexSet[i].y << ")" << vertexSet[i].crossTimes << endl;
-        circle(outputImage, Point(vertexSet[i].x, vertexSet[i].y), 30, Scalar(0, 0, 255), -1);
+void Detection::fallPointFind() {
+    for (int i = 0; i < 4; ++i) { //先按y值从小到大排序
+        for (int j = 1; j < 4; ++j) {
+            if (vertex2D[i].y > vertex2D[j].y)
+                swap(vertex2D[i], vertex2D[j]);
+        }
+    }
+    if (vertex2D[0].x > vertex2D[1].x) // 先比较y值最小的两个点的x值
+        swap(vertex2D[0], vertex2D[1]);
+    if (vertex2D[2].x > vertex2D[3].x)
+        swap(vertex2D[2], vertex2D[3]);
+
+    for (int i = 0; i < 4; i++)
+        cout << "[ " << vertex2D[i].x << " , " << vertex2D[i].y << " ]" << endl;
+
+    Point2f midPointL = Point2f((vertex2D[0].x + vertex2D[2].x) / 2, (vertex2D[0].y + vertex2D[2].y) / 2);
+    Point2f midPointR = Point2f((vertex2D[1].x + vertex2D[3].x) / 2, (vertex2D[1].y + vertex2D[3].y) / 2);
+
+    float midK = (midPointR.y - midPointL.y) / (midPointR.x - midPointL.x);
+    float midB = midPointL.y - midK * midPointL.x;
+
+    int space = (midPointR.x - midPointL.x) / 7; //间距
+    int fallPointStart = midPointR.x - space; //第一个落点在最右
+    int fallPointNum = 6;
+    for (int i = 0; i < fallPointNum; ++i) {
+        fallPoint2D[i].x = fallPointStart - i * space; //落点从右往左数123456
+        fallPoint2D[i].y = midK * fallPoint2D[i].x + midB;
     }
 }
 

@@ -21,7 +21,8 @@ private:
     InitParameters init_parameters;
     RuntimeParameters runtime_parameters;
     sl::Mat color, depth, pointCloud;
-    sl::float4 point_cloud_value;
+    sl::float4 pointCloudValue;
+    vector<vector<Point3f>> keyPoints3D;
 
     cv::Mat slMat2cvMat(sl::Mat &input);
 
@@ -32,7 +33,9 @@ public:
 
     cv::Mat getImage(int key);
 
-    void getDistance(vector<Point2f> point, vector<float> &pointDistance);
+    vector<vector<Point3f>> get3DPoint(vector<Point2f> keyPoints);
+
+//    void getDistance(vector<Point2f> point, vector<float> &pointDistance); //点离相机的距离
 };
 
 

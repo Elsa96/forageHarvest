@@ -10,6 +10,7 @@
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
 #include <vector>
+#include <algorithm>
 
 using namespace std;
 using namespace cv;
@@ -36,6 +37,8 @@ private:
     Mat srcImage;
     Mat dstImage;
     Point2f vertex2D[4];
+    Point2f fallPoint2D[6]; //TODO 落点个数
+    vector<Point2f> keyPoints;
 
     void HSVFilter(Mat inputImage, Mat &outputImage);
 
@@ -53,14 +56,16 @@ private:
 
     void pointColor(Mat image, vector<Vertex> inputVertexSet, vector<Vertex> &outputVertexSet);
 
+    void fallPointFind();
+
 public:
-    Detection(Mat image);
+    Detection(Mat &image);
 
     ~Detection() {}
 
     void process();
 
-    Point2f* getVertex();
+    vector<Point2f> getKeyPoints();  //TODO 如何改成数组形式 + 只检测到三个点的情况还需考虑
 
     void show();
 

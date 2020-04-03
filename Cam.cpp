@@ -75,18 +75,33 @@ cv::Mat Cam::slMat2cvMat(sl::Mat &input) {
 }
 
 cv::Mat Cam::getImage(int key) {
-    if(key == 0)
+    if (key == 0)
         return slMat2cvMat(color);
-    else if(key == 1)
+    else if (key == 1)
         return slMat2cvMat(depth);
     else
         return slMat2cvMat(pointCloud);
 }
 
+vector<vector<Point3f>> Cam::get3DPoint(vector<Point2f> keyPoints) {
+    vector<Point3f> pt;
+    int gap = 20; // 落点周边范围
+    for (int i = 0; i < keyPoints.size(); ++i) {
+        for (int j = -gap; j <= gap; ++j) {
+            pointCloud.getValue(keyPoints[i].x + j, keyPoints[i].y + j, &pointCloudValue);
+            pt.push_back(Point3f(pointCloudValue.x, pointCloudValue.y, pointCloudValue.z));
+        }
+        keyPoints3D.push_back(pt);
+    }
+    return keyPoints3D;
+}
+
+/*
 void Cam::getDistance(vector<Point2f> point, vector<float> &pointDistance) {
     for (int i = 0; i < point.size(); ++i) {
-        pointCloud.getValue(point[i].x, point[i].y, &point_cloud_value);
-        float distance = sqrt(point_cloud_value.x * point_cloud_value.x + point_cloud_value.y * point_cloud_value.y + point_cloud_value.z * point_cloud_value.z);
+        pointCloud.getValue(point[i].x, point[i].y, &pointCloudValue);
+        float distance = sqrt(pointCloudValue.x * pointCloudValue.x + pointCloudValue.y * pointCloudValue.y +
+                              pointCloudValue.z * pointCloudValue.z);
         pointDistance.push_back(distance);
     }
-}
+}*/
