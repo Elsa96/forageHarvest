@@ -10,16 +10,16 @@
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
 
-using namespace sl;
+
 using namespace cv;
 using namespace std;
 
 
 class Cam {
 private:
-    Camera zed;
-    InitParameters init_parameters;
-    RuntimeParameters runtime_parameters;
+    sl::Camera zed;
+    sl::InitParameters init_parameters;
+    sl::RuntimeParameters runtime_parameters;
     sl::Mat color, depth, pointCloud;
     sl::float4 pointCloudValue;
     vector<vector<Point3f>> keyPoints3D;

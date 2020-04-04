@@ -3,6 +3,7 @@
 //
 
 #include "Cam.h"
+using namespace sl;
 
 int Cam::cameraStart() {
 

@@ -40,7 +40,7 @@ private:
     Point2f fallPoint2D[6]; //TODO 落点个数
     vector<Point2f> keyPoints;
 
-    void HSVFilter(Mat inputImage, Mat &outputImage);
+    void HSVFilter(Mat inputImage, Mat &outputImage); //TODO 参数有必要省略吗
 
     void borderHough(Mat inputImage, Mat &outputImage);
 
@@ -56,7 +56,9 @@ private:
 
     void pointColor(Mat image, vector<Vertex> inputVertexSet, vector<Vertex> &outputVertexSet);
 
-    void fallPointFind();
+    void fallPointFind(); //绘制落点
+
+    void drawArmRange(); //绘制饲料下落的范围，一直在屏幕的中心区域
 
 public:
     Detection(Mat &image);
@@ -66,8 +68,6 @@ public:
     void process();
 
     vector<Point2f> getKeyPoints();  //TODO 如何改成数组形式 + 只检测到三个点的情况还需考虑
-
-    void show();
 
 };
 

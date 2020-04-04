@@ -4,13 +4,29 @@
 
 #include "Handle.h"
 
-Handle::Handle(Mat &src){
+int maxHeight = 500; //落点最大高度
+
+
+Handle::Handle(Mat &src) {
     image = src;
+    armL = image.cols / 2 - image.cols / 16; //左边界 //TODO 参数16
+    armR = image.cols / 2 + image.cols / 16; //右边界
 }
 
 void Handle::setKeyPoints(vector<Point2f> pt2D, vector<vector<Point3f>> pt3D) {
     keyPoints2D = pt2D;
     keyPoints3D = pt3D;
+    for (int i = 4; i < pt2D.size(); ++i) {
+        fallPoints2D.push_back(pt2D[i]);
+    }
+    for (int i = 4; i < pt3D.size(); ++i) {
+        point3D pt(pt3D[i]);
+        fallPoints3D.push_back(pt);
+    }
+}
+
+void Handle::process() {
+
 }
 
 void Handle::getPlane() {
@@ -25,28 +41,67 @@ void Handle::getPlane() {
 
 }
 
-float Handle::fallPointOverflow(vector<Point3f> fallPoint) {
-    getPlane();
+void Handle::fallPointOverflow() {
+
     float distanceSum = 0;
     float distanceAvg = 0;
-    for (int i = 0; i < fallPoint.size(); ++i) { //计算出落点一定范围内离平面的距离
-        distanceSum +=  (a * fallPoint[i].x + b * fallPoint[i].y + c * fallPoint[i].z + d) / sqrt(a * a + b * b + c * c);
+    for (int i = 0; i < fallPoints3D.size(); ++i) {
+        for (int j = 0; j < fallPoints3D[i].pt.size(); ++j) {
+            distanceSum += (a * fallPoints3D[i].pt[j].x + b * fallPoints3D[i].pt[j].y + c * fallPoints3D[i].pt[j].z + d) / sqrt(a * a + b * b + c * c);
+        }
+        distanceAvg = distanceSum / fallPoints3D[i].pt.size(); //取平均值
+        fallPoints3D[i].setDistance(distanceAvg);
     }
-    distanceAvg = distanceSum / fallPoint.size(); //取平均值
-    return distanceAvg; //TODO 设置一个新的结构体，让与平面的距离成为落点的属性
 }
 
 
-void Handle::drawFallPoints(){ //TODO 没有画在原图上
-    int maxHeight = 500;
-    for (int i = 4; i < keyPoints3D.size(); ++i) {
-        float height = fallPointOverflow(keyPoints3D[i]);
-        if( height > maxHeight)
-            circle(image, keyPoints2D[i], 2, cv::Scalar(0, 0, 255), 2);
-        else if(height < maxHeight / 2)
-            circle(image, keyPoints2D[i], 2, cv::Scalar(0, 255, 0), 2);
+void Handle::drawFallPoints() {
+
+    for (int i = 0; i < fallPoints3D.size(); ++i) {
+        float height = fallPoints3D[i].distance;
+        if (height > maxHeight)
+            circle(image, fallPoints2D[i], 2, cv::Scalar(0, 0, 255), 2);
+        else if (height < maxHeight / 2)
+            circle(image, fallPoints2D[i], 2, cv::Scalar(0, 255, 0), 2);
         else
-            circle(image, keyPoints2D[i], 2, cv::Scalar(0, 255, 255), 2);
+            circle(image, fallPoints2D[i], 2, cv::Scalar(0, 255, 255), 2);
     }
 }
 
+void Handle::right2Left() {
+    for (int i = 0; i < fallPoints3D.size(); ++i) {
+        if(fallPoints2D[i].x >= armL && fallPoints2D[i].x <= armR){
+            if(fallPoints3D[i].distance < maxHeight){
+                //不转
+                //无箭头
+                //break? 怎么让他停在这里喷洒 不到下一个落点
+            } else{
+                //左转
+                //左箭头
+                //下一个落点
+            }
+        }
+        else if(fallPoints2D[i].x > armR){
+            if(fallPoints3D[i].distance < maxHeight){
+                //右转
+                //右箭头
+                //转到最右未满的点
+            } else{
+                //左转
+                //左箭头
+                //下一个落点
+            }
+        }
+        else{ //落点位于下落柱左边 逻辑好像有问题
+            if(fallPoints3D[i].distance < maxHeight){
+                //左转
+                //左箭头
+                //转到当前落点
+            } else{
+                //左转
+                //左箭头
+                //下一个落点
+            }
+        }
+    }
+}
