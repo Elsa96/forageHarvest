@@ -17,8 +17,8 @@ int vmin = 46;
 int vmax = 255;
 
 Detection::Detection(Mat &image) {
-    srcImage = image;
-    dstImage = srcImage.clone();
+    srcImage = image.clone();
+    dstImage = image;
 }
 
 void Detection::process() {
@@ -27,6 +27,7 @@ void Detection::process() {
     HSVFilter(srcImage, mask);
     borderHough(mask, dstImage);
     fallPointFind();
+    drawArmRange();
 }
 
 vector<Point2f> Detection::getKeyPoints() {
@@ -37,18 +38,6 @@ vector<Point2f> Detection::getKeyPoints() {
     return keyPoints;
 }
 
-void Detection::show() {
-
-    namedWindow("原始图像", WINDOW_NORMAL);
-    resizeWindow("原始图像", 1000, 1000);
-    imshow("原始图像", srcImage);
-
-    namedWindow("目标图像", WINDOW_NORMAL);
-    resizeWindow("目标图像", 1000, 1000);
-    imshow("目标图像", dstImage);
-
-    waitKey(0);
-}
 
 void Detection::HSVFilter(Mat inputImage, Mat &outputImage) {
     Mat hsvImage;
@@ -362,7 +351,7 @@ void Detection::pointColor(Mat image, vector<Vertex> inputVertexSet, vector<Vert
 
 void Detection::fallPointFind() {
     for (int i = 0; i < 4; ++i) { //先按y值从小到大排序
-        for (int j = 1; j < 4; ++j) {
+        for (int j = i + 1; j < 4; ++j) {
             if (vertex2D[i].y > vertex2D[j].y)
                 swap(vertex2D[i], vertex2D[j]);
         }
@@ -387,6 +376,16 @@ void Detection::fallPointFind() {
     for (int i = 0; i < fallPointNum; ++i) {
         fallPoint2D[i].x = fallPointStart - i * space; //落点从右往左数123456
         fallPoint2D[i].y = midK * fallPoint2D[i].x + midB;
+    }
+    for (int k = 0; k < fallPointNum; ++k) {
+        circle(dstImage, fallPoint2D[k], 30, cv::Scalar(0, 255, 0), -1);
+    }
+}
+
+void Detection::drawPoints(vector<Vertex> vertexSet, Mat &outputImage) {
+    for (int i = 0; i < vertexSet.size(); i++) {
+//        cout << "(" << vertexSet[i].x << "," << vertexSet[i].y << ")" << vertexSet[i].crossTimes << endl;
+        circle(outputImage, Point(vertexSet[i].x, vertexSet[i].y), 30, Scalar(0, 0, 255), -1);
     }
 }
 
@@ -437,4 +436,15 @@ void Detection::drawBox(vector<Vertex> vertexSet, Mat &outputImage) {
         Point pt = Point(vertexSet[i].x, vertexSet[i].y);
         circle(outputImage, pt, 30, Scalar(0, 0, 255), -1);
     }
+}
+
+void Detection::drawArmRange() {
+
+    int armHeight = srcImage.rows;
+    int armL = srcImage.cols / 2 - srcImage.cols / 16; //左边界 //TODO 参数16
+    int armR = srcImage.cols / 2 + srcImage.cols / 16; //右边界
+
+    line(dstImage, Point(armL, 0), Point(armL, armHeight / 4), Scalar(0, 255, 0), 20, CV_AA);  //画左边的饲料下落边界
+    line(dstImage, Point(armR, 0), Point(armR, armHeight / 4), Scalar(0, 255, 0), 20, CV_AA);  //画右边的饲料下落边界
+
 }

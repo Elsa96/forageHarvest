@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.8)
+cmake_minimum_required(VERSION 3.9)
 project(forageHarvest)
 
 option(LINK_SHARED_ZED "Link with the ZED SDK shared executable" ON)  #???
