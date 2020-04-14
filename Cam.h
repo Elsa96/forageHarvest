@@ -5,18 +5,16 @@
 #ifndef FORAGEHARVEST_CAM_H
 #define FORAGEHARVEST_CAM_H
 
-#include <sl/Camera.hpp>
 #include <opencv2/core/core.hpp>
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
-
+#include <sl/Camera.hpp>
 
 using namespace cv;
 using namespace std;
 
-
 class Cam {
-private:
+  private:
     sl::Camera zed;
     sl::InitParameters init_parameters;
     sl::RuntimeParameters runtime_parameters;
@@ -26,17 +24,16 @@ private:
 
     cv::Mat slMat2cvMat(sl::Mat &input);
 
-public:
+  public:
     int cameraStart();
 
-//    void intrinsic();
+    //    void intrinsic();
 
     cv::Mat getImage(int key);
 
     vector<vector<Point3f>> get3DPoint(vector<Point2f> keyPoints);
 
-//    void getDistance(vector<Point2f> point, vector<float> &pointDistance); //点离相机的距离
+    //    void getDistance(vector<Point2f> point, vector<float> &pointDistance); //点离相机的距离
 };
 
-
-#endif //FORAGEHARVEST_CAM_H
+#endif // FORAGEHARVEST_CAM_H

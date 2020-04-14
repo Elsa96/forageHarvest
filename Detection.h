@@ -5,12 +5,12 @@
 #ifndef FORAGEHARVEST_DETECTION_H
 #define FORAGEHARVEST_DETECTION_H
 
+#include <algorithm>
 #include <iostream>
 #include <opencv2/core/core.hpp>
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
 #include <vector>
-#include <algorithm>
 
 using namespace std;
 using namespace cv;
@@ -20,7 +20,8 @@ struct Vertex {
     int y;
     int crossTimes = 0;
 
-    Vertex(int posX, int posY) : x(posX), y(posY) {}
+    Vertex(int posX, int posY) : x(posX), y(posY) {
+    }
 
     void setXY(int _x, int _y) {
         x = _x;
@@ -33,14 +34,16 @@ struct Vertex {
 };
 
 class Detection {
-private:
+  private:
     Mat srcImage;
     Mat dstImage;
-    Point2f vertex2D[4];
-    Point2f fallPoint2D[6]; //TODO 落点个数
-    vector<Point2f> keyPoints;
+    vector<Point2f> vertex2D; // 4个角点
+    vector<Point2f> fallPoint2D; // 6个落点 TODO 落点个数
+    //    Point2f vertex2D[4]; // 4个角点
+    //    Point2f fallPoint2D[6]; // 6个落点 TODO 落点个数
+    vector<Point2f> keyPoints; // 4个角点+6个落点？？
 
-    void HSVFilter(Mat inputImage, Mat &outputImage); //TODO 参数有必要省略吗
+    void HSVFilter(Mat inputImage, Mat &outputImage); // TODO 参数有必要省略吗
 
     void borderHough(Mat inputImage, Mat &outputImage);
 
@@ -60,16 +63,15 @@ private:
 
     void drawArmRange(); //绘制饲料下落的范围，一直在屏幕的中心区域
 
-public:
+  public:
     Detection(Mat &image);
 
-    ~Detection() {}
+    ~Detection() {
+    }
 
     void process();
 
-    vector<Point2f> getKeyPoints();  //TODO 如何改成数组形式 + 只检测到三个点的情况还需考虑
-
+    vector<Point2f> getKeyPoints(); // TODO 如何改成数组形式 + 只检测到三个点的情况还需考虑
 };
 
-
-#endif //FORAGEHARVEST_DETECTION_H
+#endif // FORAGEHARVEST_DETECTION_H
