@@ -14,23 +14,20 @@ using namespace std;
 using namespace cv;
 
 struct point3D {
-
     vector<Point3f> pt;
     int distance;
 
-    point3D(vector<Point3f> _pt){
+    point3D(vector<Point3f> _pt) {
         pt = _pt;
         distance = 0;
     }
-    void setDistance(int _distance){
+    void setDistance(int _distance) {
         distance = _distance;
     }
-
 };
 
-
 class Handle {
-private:
+  private:
     Mat image;
     int armL, armR;
     vector<Point2f> keyPoints2D;
@@ -47,17 +44,15 @@ private:
 
     void right2Left();
 
-
-public:
+  public:
     Handle(Mat &src);
 
-    ~Handle() {}
+    ~Handle() {
+    }
 
     void setKeyPoints(vector<Point2f> pt2D, vector<vector<Point3f>> pt3D);
 
     void process();
-
 };
 
-
-#endif //FORAGEHARVEST_HANDLE_H
+#endif // FORAGEHARVEST_HANDLE_H
