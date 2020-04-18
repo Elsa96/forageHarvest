@@ -34,14 +34,16 @@ struct Vertex {
 };
 
 class Detection {
-  private:
+private:
     Mat srcImage;
     Mat dstImage;
     vector<Point2f> vertex2D; // 4个角点
     vector<Point2f> fallPoint2D; // 6个落点 TODO 落点个数
-    //    Point2f vertex2D[4]; // 4个角点
-    //    Point2f fallPoint2D[6]; // 6个落点 TODO 落点个数
-    vector<Point2f> keyPoints; // 4个角点+6个落点？？
+    vector<Point2f> keyPoints; // 4个角点+6个落点
+
+    vector<Point2f> edgePointsUp2D; // 6个上车斗边缘点
+    vector<Point2f> edgePointsDown2D; // 6个下车斗边缘点
+    vector<Point2f> edgePoints; // 4个角点+6个落点+12个边缘点
 
     void HSVFilter(Mat inputImage, Mat &outputImage); // TODO 参数有必要省略吗
 
@@ -61,9 +63,11 @@ class Detection {
 
     void fallPointFind(); //绘制落点
 
+    void edgePointFind(); //绘制车斗边缘的点，并反馈在落点上
+
     void drawArmRange(); //绘制饲料下落的范围，一直在屏幕的中心区域
 
-  public:
+public:
     Detection(Mat &image);
 
     ~Detection() {
@@ -71,7 +75,9 @@ class Detection {
 
     void process();
 
-    vector<Point2f> getKeyPoints(); // TODO 如何改成数组形式 + 只检测到三个点的情况还需考虑
+    vector<Point2f> getKeyPoints(); // TODO 只检测到三个点的情况还需考虑
+
+    vector<Point2f> getEdgePoints();
 };
 
 #endif // FORAGEHARVEST_DETECTION_H

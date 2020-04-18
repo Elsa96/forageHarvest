@@ -16,19 +16,26 @@ Handle::Handle(Mat &src) {
 void Handle::setKeyPoints(vector<Point2f> pt2D, vector<vector<Point3f>> pt3D) {
     keyPoints2D = pt2D;
     keyPoints3D = pt3D;
-    for (int i = 4; i < pt2D.size(); ++i) { // 为啥从第4个开始？？
+    for (int i = 4; i < 10; ++i) { //前4个是角点
         fallPoints2D.push_back(pt2D[i]);
     }
-    for (int i = 4; i < pt3D.size(); ++i) {
+    for (int i = 4; i < 10; ++i) {
         point3D pt(pt3D[i]);
         fallPoints3D.push_back(pt);
+    }
+    for (int i = 10; i < pt2D.size(); ++i) { //前10个是角点+落点
+        edgePoints2D.push_back(pt2D[i]);
+    }
+    for (int i = 10; i < pt3D.size(); ++i) {
+        point3D pt(pt3D[i]);
+        edgePoints3D.push_back(pt);
     }
 }
 
 void Handle::process() {
-    //    getPlane();
-    //    fallPointOverflow();
-    //    drawFallPoints();
+    getPlane();
+    fallPointOverflow();
+    drawFallPoints();
 }
 
 // 平面方程
@@ -50,11 +57,26 @@ void Handle::fallPointOverflow() {
     for (int i = 0; i < fallPoints3D.size(); ++i) {
         for (int j = 0; j < fallPoints3D[i].pt.size(); ++j) {
             distanceSum +=
-                (a * fallPoints3D[i].pt[j].x + b * fallPoints3D[i].pt[j].y + c * fallPoints3D[i].pt[j].z + d) /
-                sqrt(a * a + b * b + c * c);
+                    (a * fallPoints3D[i].pt[j].x + b * fallPoints3D[i].pt[j].y + c * fallPoints3D[i].pt[j].z + d) /
+                    sqrt(a * a + b * b + c * c);
         }
         distanceAvg = distanceSum / fallPoints3D[i].pt.size(); //取平均值
         fallPoints3D[i].setDistance(distanceAvg);
+        // 点在平面哪一侧？？
+    }
+}
+
+void Handle::edgePointOverflow() {
+    float distanceSum = 0;
+    float distanceAvg = 0;
+    for (int i = 0; i < edgePoints3D.size(); ++i) {
+        for (int j = 0; j < edgePoints3D[i].pt.size(); ++j) {
+            distanceSum +=
+                    (a * edgePoints3D[i].pt[j].x + b * edgePoints3D[i].pt[j].y + c * edgePoints3D[i].pt[j].z + d) /
+                    sqrt(a * a + b * b + c * c);
+        }
+        distanceAvg = distanceSum / edgePoints3D[i].pt.size(); //取平均值
+        edgePoints3D[i].setDistance(distanceAvg);
         // 点在平面哪一侧？？
     }
 }
@@ -69,6 +91,18 @@ void Handle::drawFallPoints() {
             circle(image, fallPoints2D[i], 2, cv::Scalar(0, 255, 0), 2);
         else
             circle(image, fallPoints2D[i], 2, cv::Scalar(0, 255, 255), 2);
+    }
+}
+
+void Handle::drawFallPoints_2() {
+    for (int i = 0; i < edgePoints3D.size() / 2; ++i) {
+        float height1 = edgePoints3D[i].distance;
+        float height2 = edgePoints3D[i + edgePoints3D.size() / 2].distance;
+
+        if (height1 > 0 && height2 > 0)
+            circle(image, fallPoints2D[i], 2, cv::Scalar(0, 0, 255), 2);
+        else
+            circle(image, fallPoints2D[i], 2, cv::Scalar(0, 255, 0), 2);
     }
 }
 

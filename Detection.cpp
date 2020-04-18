@@ -5,17 +5,6 @@
 #include "Detection.h"
 
 ////色相（黄色）
-// int hmin = 26;
-// int hmax = 34;
-//
-////饱和度
-// int smin = 43;
-// int smax = 255;
-//
-////亮度
-// int vmin = 46;
-// int vmax = 255;
-
 Scalar hsvMin = Scalar(26, 43, 46);
 Scalar hsvMax = Scalar(34, 255, 255);
 // cv::Mat hsvMin_mat = cv::Mat(hsvMin); //将vector变成单列的mat
@@ -24,12 +13,13 @@ Scalar hsvMax = Scalar(34, 255, 255);
 Detection::Detection(Mat &image) {
     vertex2D.reserve(4); // 分配空间
     fallPoint2D.reserve(6);
+    edgePointsUp2D.reserve(6);
+    edgePointsDown2D.reserve(6);
     srcImage = image.clone();
     dstImage = image;
 }
 
 void Detection::process() {
-    //    Mat mask = srcImage.clone();
     Mat mask;
     HSVFilter(srcImage, mask);
     borderHough(mask, dstImage);
@@ -43,11 +33,16 @@ vector<Point2f> Detection::getKeyPoints() {
     keyPoints.clear();
     keyPoints.insert(keyPoints.end(), vertex2D.begin(), vertex2D.end());
     keyPoints.insert(keyPoints.end(), fallPoint2D.begin(), fallPoint2D.end());
-    //    for (int i = 0; i < 4; ++i)
-    //        keyPoints.push_back(vertex2D[i]);
-    //    for (int j = 0; j < 6; ++j)
-    //        keyPoints.push_back(fallPoint2D[j]);
     return keyPoints;
+}
+
+vector<Point2f> Detection::getEdgePoints() {
+    edgePoints.clear();
+    edgePoints.insert(edgePoints.end(), vertex2D.begin(), vertex2D.end());
+    edgePoints.insert(edgePoints.end(), fallPoint2D.begin(), fallPoint2D.end());
+    edgePoints.insert(edgePoints.end(), edgePointsUp2D.begin(), edgePointsUp2D.end());
+    edgePoints.insert(edgePoints.end(), edgePointsDown2D.begin(), edgePointsDown2D.end());
+    return edgePoints;
 }
 
 // HSV预处理
@@ -58,9 +53,7 @@ void Detection::HSVFilter(Mat inputImage, Mat &outputImage) {
 
     Mat mask;
 
-    //二值化
-    //    inRange(hsvImage, Scalar(hmin, smin, vmin), Scalar(hmax, smax, vmax),
-    //            mask); // scalar不是bgr吗，为什么可以限定上下限,Scalar只是一个不超过4维的向量
+    // scalar不是bgr吗，为什么可以限定上下限，Scalar只是一个不超过4维的向量
     inRange(hsvImage, hsvMin, hsvMax, mask);
 
     //形态学运算
@@ -69,7 +62,6 @@ void Detection::HSVFilter(Mat inputImage, Mat &outputImage) {
     dilate(mask, mask, element); //膨胀
 
     outputImage = mask;
-    //    outputImage = mask.clone();
 }
 
 // 霍夫直线检测
@@ -250,8 +242,8 @@ void Detection::getCrossPointAndIncrement(Vec4f LineA, Vec4f LineB, vector<Verte
     crossPoint.x = (ka * LineA[0] - LineA[1] - kb * LineB[0] + LineB[1]) / (ka - kb);
     crossPoint.y = (ka * kb * (LineA[0] - LineB[0]) + ka * LineB[1] - kb * LineA[1]) / (ka - kb);
 
-    int x = (int)(round)(crossPoint.x);
-    int y = (int)(round)(crossPoint.y);
+    int x = (int) (round)(crossPoint.x);
+    int y = (int) (round)(crossPoint.y);
 
     int VertexGap = 40000; // TODO VerTexGap
 
@@ -291,20 +283,6 @@ void Detection::mostIntersections(vector<Vec4f> lines, vector<Vertex> &topVertex
     sort(vertexSet.begin(), vertexSet.end(),
          [](const Vertex &vt1, const Vertex &vt2) { return vt1.crossTimes > vt2.crossTimes; }); // 降序
     topVertexSet.assign(vertexSet.begin(), vertexSet.begin() + topVertexNum); //取前topVertexNum个
-
-    //    int max = 0;
-    //    int maxUnder = -1;
-    //    while (topVertexSet.size() < topVertexNum) {
-    //        max = 0;
-    //        for (int i = 0; i < vertexSet.size(); i++) {
-    //            if (vertexSet[i].crossTimes > max) {
-    //                max = vertexSet[i].crossTimes;
-    //                maxUnder = i;
-    //            }
-    //        }
-    //        topVertexSet.push_back(vertexSet[maxUnder]);
-    //        vertexSet[maxUnder].crossTimes = -1;
-    //    }
 }
 
 // 验证角点是否为黄色 verifyVertexColor
@@ -356,21 +334,12 @@ void Detection::pointColor(Mat image, vector<Vertex> inputVertexSet, vector<Vert
                 cv::Vec3b hsvPoint = hsvImage.at<Vec3b>(k, j);
                 cv::Vec3b hsvInRangeRes;
                 inRange(hsvPoint, hsvMin, hsvMax, hsvInRangeRes); // 在范围内255，否则0
-                int notInRangeNum = countNonZero(hsvInRangeRes); // 非零个数
-                if (notInRangeNum == 3) {
+                int InRangeNum = countNonZero(hsvInRangeRes); // 非零个数
+                if (InRangeNum == 3) { //hsv 都在范围内 返回（255,255,255）
                     outputVertexSet.push_back(inputVertexSet[i]);
                     flag = 1;
                     break;
                 }
-
-                //                int h = hsvImage.at<Vec3b>(k, j)[0];
-                //                int s = hsvImage.at<Vec3b>(k, j)[1];
-                //                int v = hsvImage.at<Vec3b>(k, j)[2];
-                //                if ((h > hmin && h < hmax) && (s > smin && s < smax) && (v > vmin && v < vmax)) {
-                //                    outputVertexSet.push_back(inputVertexSet[i]);
-                //                    flag = 1;
-                //                    break;
-                //                }
             }
             if (flag == 1)
                 break;
@@ -381,13 +350,7 @@ void Detection::pointColor(Mat image, vector<Vertex> inputVertexSet, vector<Vert
 // 框内落点坐标
 void Detection::fallPointFind() {
     sort(vertex2D.begin(), vertex2D.end(),
-         [](const Point2f &pt1, const Point2f &pt2) { return pt1.y < pt2.y; }); // 升序
-    //    for (int i = 0; i < 4; ++i) { //先按y值从小到大排序
-    //        for (int j = i + 1; j < 4; ++j) {
-    //            if (vertex2D[i].y > vertex2D[j].y)
-    //                swap(vertex2D[i], vertex2D[j]);
-    //        }
-    //    }
+         [](const Point2f &pt1, const Point2f &pt2) { return pt1.y < pt2.y; }); // 按y值升序
 
     if (vertex2D[0].x > vertex2D[1].x) // 先比较y值最小的两个点的x值
         swap(vertex2D[0], vertex2D[1]);
@@ -407,13 +370,56 @@ void Detection::fallPointFind() {
     int fallPointStart = midPointR.x - space; //第一个落点在最右
     int fallPointNum = 6;
     for (int i = 0; i < fallPointNum; ++i) {
-        fallPoint2D[i].x = fallPointStart - i * space; //落点从右往左数123456
-        fallPoint2D[i].y = midK * fallPoint2D[i].x + midB;
-        circle(dstImage, fallPoint2D[i], 30, cv::Scalar(0, 255, 0), -1);
+        float x = fallPointStart - i * space; //落点从右往左数123456
+        float y = midK * x + midB;
+        fallPoint2D.push_back(Point2f(x, y));
+        circle(dstImage, Point2f(x, y), 30, cv::Scalar(0, 255, 0), -1);
     }
-    //    for (int k = 0; k < fallPointNum; ++k) {
-    //        circle(dstImage, fallPoint2D[k], 30, cv::Scalar(0, 255, 0), -1);
-    //    }
+}
+
+void Detection::edgePointFind() {
+    sort(vertex2D.begin(), vertex2D.end(),
+         [](const Point2f &pt1, const Point2f &pt2) { return pt1.y < pt2.y; }); // 升序
+
+    //左上0，右上1，左下2，右下3
+    if (vertex2D[0].x > vertex2D[1].x) // 先比较y值最小的两个点的x值
+        swap(vertex2D[0], vertex2D[1]);
+    if (vertex2D[2].x > vertex2D[3].x)
+        swap(vertex2D[2], vertex2D[3]);
+
+    int gap = 20;
+    int pointNum = 6;
+
+    Point2f upPointL = Point2f(vertex2D[0].x + gap, vertex2D[0].y + gap);
+    Point2f upPointR = Point2f(vertex2D[1].x - gap, vertex2D[1].y + gap);
+
+    float upK = (upPointR.y - upPointL.y) / (upPointR.x - upPointL.x);
+    float upB = upPointL.y - upK * upPointL.x;
+
+    int upSpace = (upPointR.x - upPointL.x) / 7; //间距
+    int upStart = upPointR.x - upSpace; //第一个点在最右
+
+    for (int i = 0; i < pointNum; ++i) {
+        float x = upStart - i * upSpace; //从右往左数123456
+        float y = upK * x + upB;
+        edgePointsUp2D.push_back(Point2f(x, y));
+    }
+
+    Point2f downPointL = Point2f(vertex2D[2].x + gap, vertex2D[2].y - gap);
+    Point2f downPointR = Point2f(vertex2D[3].x - gap, vertex2D[3].y - gap);
+
+    float downK = (downPointR.y - downPointL.y) / (downPointR.x - downPointL.x);
+    float downB = downPointL.y - downK * downPointL.x;
+
+    int downSpace = (downPointR.x - downPointL.x) / 7; //间距
+    int downStart = downPointR.x - downSpace; //第一个点在最右
+
+    for (int i = 0; i < pointNum; ++i) {
+        float x = downStart - i * downSpace; //从右往左数123456
+        float y = downK * x + downB;
+        edgePointsDown2D.push_back(Point2f(x, y));
+    }
+
 }
 
 // 画角点 drawVertexPoints
@@ -429,14 +435,14 @@ void Detection::drawLines(vector<Vertex> top4vertexSet, Mat &outputImage) {
     int crossPoint = 0;
     for (int i = 1; i < 4; i++) { //第0个点与第i个点连线
         double temp_k =
-            (double)(top4vertexSet[i].y - top4vertexSet[0].y) / (double)(top4vertexSet[i].x - top4vertexSet[0].x);
-        double temp_b = (double)top4vertexSet[0].y - temp_k * (double)top4vertexSet[0].x;
+                (double) (top4vertexSet[i].y - top4vertexSet[0].y) / (double) (top4vertexSet[i].x - top4vertexSet[0].x);
+        double temp_b = (double) top4vertexSet[0].y - temp_k * (double) top4vertexSet[0].x;
 
         int flag = 0; //标志为正还是为负
         for (int j = 1; j < 4; j++) {
             if (j != i) {
                 //第j个点的y坐标减线上坐标
-                double diff = (double)top4vertexSet[j].y - (temp_k * (double)top4vertexSet[j].x + temp_b);
+                double diff = (double) top4vertexSet[j].y - (temp_k * (double) top4vertexSet[j].x + temp_b);
                 if (flag == 0) {
                     flag = diff > 0 ? 1 : -1;
                 } else {
@@ -461,7 +467,7 @@ void Detection::drawLines(vector<Vertex> top4vertexSet, Mat &outputImage) {
     }
 }
 
-// 画三角形??
+// 画三角形
 void Detection::drawBox(vector<Vertex> vertexSet, Mat &outputImage) {
     cout << "-----------------" << endl;
     for (int i = 0; i < vertexSet.size(); i++) {

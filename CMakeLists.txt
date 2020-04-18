@@ -19,7 +19,7 @@ link_directories(${ZED_LIBRARY_DIR})
 link_directories(${CUDA_LIBRARY_DIRS})
 
 #设置源文件（主文件）
-set(SOURCE_FILES main.cpp Detection.cpp Detection.h Cam.cpp Cam.h Handle.cpp Handle.h)
+set(SOURCE_FILES main.cpp Detection.cpp Cam.cpp Handle.cpp)
 
 if(LINK_SHARED_ZED)
     SET(ZED_LIBS ${ZED_LIBRARIES} ${CUDA_CUDA_LIBRARY} ${CUDA_CUDART_LIBRARY} ${CUDA_NPP_LIBRARIES_ZED})
