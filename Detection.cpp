@@ -11,10 +11,10 @@ Scalar hsvMax = Scalar(34, 255, 255);
 // cv::Mat hsvMax_mat = cv::Mat(hsvMax); //将vector变成单列的mat
 
 Detection::Detection(Mat &image) {
-    vertex2D.reserve(4); // 分配空间
-    fallPoint2D.reserve(6);
-    edgePointsUp2D.reserve(6);
-    edgePointsDown2D.reserve(6);
+    vertex2D.resize(4); // 分配空间,reserve是个坑
+    fallPoint2D.resize(6);
+    edgePointsUp2D.resize(6);
+    edgePointsDown2D.resize(6);
     srcImage = image.clone();
     dstImage = image;
 }
@@ -27,7 +27,7 @@ void Detection::process() {
     drawArmRange();
 }
 
-// 4个角点+6个落点作为关键点
+// 4个角点+6个中间落点 作为关键点
 vector<Point2f> Detection::getKeyPoints() {
     // 将vec1和vec2的内容合并到keyPoints中
     keyPoints.clear();
@@ -36,6 +36,7 @@ vector<Point2f> Detection::getKeyPoints() {
     return keyPoints;
 }
 
+// 4个角点+6个中间落点+上下边缘点
 vector<Point2f> Detection::getEdgePoints() {
     edgePoints.clear();
     edgePoints.insert(edgePoints.end(), vertex2D.begin(), vertex2D.end());
@@ -242,8 +243,8 @@ void Detection::getCrossPointAndIncrement(Vec4f LineA, Vec4f LineB, vector<Verte
     crossPoint.x = (ka * LineA[0] - LineA[1] - kb * LineB[0] + LineB[1]) / (ka - kb);
     crossPoint.y = (ka * kb * (LineA[0] - LineB[0]) + ka * LineB[1] - kb * LineA[1]) / (ka - kb);
 
-    int x = (int) (round)(crossPoint.x);
-    int y = (int) (round)(crossPoint.y);
+    int x = (int)(round)(crossPoint.x);
+    int y = (int)(round)(crossPoint.y);
 
     int VertexGap = 40000; // TODO VerTexGap
 
@@ -335,7 +336,7 @@ void Detection::pointColor(Mat image, vector<Vertex> inputVertexSet, vector<Vert
                 cv::Vec3b hsvInRangeRes;
                 inRange(hsvPoint, hsvMin, hsvMax, hsvInRangeRes); // 在范围内255，否则0
                 int InRangeNum = countNonZero(hsvInRangeRes); // 非零个数
-                if (InRangeNum == 3) { //hsv 都在范围内 返回（255,255,255）
+                if (InRangeNum == 3) { // hsv 都在范围内 返回（255,255,255）
                     outputVertexSet.push_back(inputVertexSet[i]);
                     flag = 1;
                     break;
@@ -347,16 +348,15 @@ void Detection::pointColor(Mat image, vector<Vertex> inputVertexSet, vector<Vert
     }
 }
 
-// 框内落点坐标
+// 框内中间落点坐标
 void Detection::fallPointFind() {
-    sort(vertex2D.begin(), vertex2D.end(),
-         [](const Point2f &pt1, const Point2f &pt2) { return pt1.y < pt2.y; }); // 按y值升序
-
+    sort(vertex2D.begin(), vertex2D.end(), [](Point2f &pt1, Point2f &pt2) { return pt1.y < pt2.y; }); // 按y值升序
     if (vertex2D[0].x > vertex2D[1].x) // 先比较y值最小的两个点的x值
         swap(vertex2D[0], vertex2D[1]);
     if (vertex2D[2].x > vertex2D[3].x)
         swap(vertex2D[2], vertex2D[3]);
 
+    cout << "4个角点坐标" << endl;
     for (int i = 0; i < 4; i++)
         cout << "[ " << vertex2D[i].x << " , " << vertex2D[i].y << " ]" << endl;
 
@@ -419,7 +419,6 @@ void Detection::edgePointFind() {
         float y = downK * x + downB;
         edgePointsDown2D.push_back(Point2f(x, y));
     }
-
 }
 
 // 画角点 drawVertexPoints
@@ -435,14 +434,14 @@ void Detection::drawLines(vector<Vertex> top4vertexSet, Mat &outputImage) {
     int crossPoint = 0;
     for (int i = 1; i < 4; i++) { //第0个点与第i个点连线
         double temp_k =
-                (double) (top4vertexSet[i].y - top4vertexSet[0].y) / (double) (top4vertexSet[i].x - top4vertexSet[0].x);
-        double temp_b = (double) top4vertexSet[0].y - temp_k * (double) top4vertexSet[0].x;
+            (double)(top4vertexSet[i].y - top4vertexSet[0].y) / (double)(top4vertexSet[i].x - top4vertexSet[0].x);
+        double temp_b = (double)top4vertexSet[0].y - temp_k * (double)top4vertexSet[0].x;
 
         int flag = 0; //标志为正还是为负
         for (int j = 1; j < 4; j++) {
             if (j != i) {
                 //第j个点的y坐标减线上坐标
-                double diff = (double) top4vertexSet[j].y - (temp_k * (double) top4vertexSet[j].x + temp_b);
+                double diff = (double)top4vertexSet[j].y - (temp_k * (double)top4vertexSet[j].x + temp_b);
                 if (flag == 0) {
                     flag = diff > 0 ? 1 : -1;
                 } else {
@@ -488,4 +487,135 @@ void Detection::drawArmRange() {
 
     line(dstImage, Point(armL, 0), Point(armL, armHeight / 4), Scalar(0, 255, 0), 20, CV_AA); //画左边的饲料下落边界
     line(dstImage, Point(armR, 0), Point(armR, armHeight / 4), Scalar(0, 255, 0), 20, CV_AA); //画右边的饲料下落边界
+}
+
+// 深度图获取ROI
+void Detection::getROI(Mat inputGray, Mat &roiImage, Rect &roiBoundRect) {
+    // todo 在map图根据实际工作距离截取ROI
+    // todo 落柱引起的边缘可以填充为缺失值统一处理
+
+    Mat grayImage; // 输出
+
+    // 转成灰度
+    if (inputGray.type() != CV_8UC1) {
+        cvtColor(inputGray, grayImage, CV_BGR2GRAY);
+        //    imshow("grayImage", grayImage);
+    } else {
+        grayImage = inputGray;
+    }
+
+    // 去除缺失值
+    // 得到所有缺失值坐标 //二值化,七种常见阈值分割
+    Mat lostPointImg;
+    threshold(grayImage, lostPointImg, 1, 255, CV_THRESH_BINARY_INV);
+    //    imshow("lostPointImg", lostPointImg);
+
+    // 膨胀扩大缺失的边缘
+    int dilation_size = 2;
+    Mat element = getStructuringElement(MORPH_RECT, Size(2 * dilation_size + 1, 2 * dilation_size + 1));
+    dilate(lostPointImg, lostPointImg, element);
+    //    imshow("Dilation", lostPointImg);
+
+    // 缺失值的点坐标
+    vector<Point> lostPoint;
+    // 查找非零的值
+    findNonZero(lostPointImg, lostPoint);
+    //    cout << "--lostPoint.size() " << lostPoint.size() << endl;
+
+    // 中值滤波
+    //    Mat medianBlurImage;
+    medianBlur(grayImage, grayImage, 9); //第三个参数为int类型的ksize，必须为大于1的奇数（3、5、7....）
+    //    namedWindow("中值滤波");
+    //    imshow("中值滤波", grayImage);
+
+    Mat cannyImg;
+    // 用Canny算子检测边缘
+    Canny(grayImage, cannyImg, 10, 30, 3);
+    imshow("Canny", cannyImg);
+
+    Mat binaryImg = cannyImg;
+    //    // 去除缺失值引起的边缘，这一步应该就可以了，不需要这么麻烦，但是测试图有点坑
+    //    binaryImg = cannyImg - lostPointImg;
+    //    imshow("binaryImg", binaryImg);
+
+    // 仅调试显示
+    Mat contoursImg = Mat::zeros(inputGray.size(), CV_8UC3);
+
+    vector<vector<Point>> contours; // 找到的各个轮廓的点
+    vector<Vec4i> hierarchy; // 轮廓层次结构
+    // 寻找轮廓
+    // 参数：二值图,找到的轮廓点,轮廓层次结构，轮廓的检索模式，轮廓估计的方法，偏移
+    findContours(binaryImg, contours, hierarchy, CV_RETR_EXTERNAL, CV_CHAIN_APPROX_NONE, Point(0, 0));
+    // 对每个轮廓计算其凸包
+    vector<vector<Point>> hull(contours.size());
+    for (int i = 0; i < contours.size(); i++) {
+        convexHull(Mat(contours[i]), hull[i], false);
+    }
+    // 绘出各个轮廓
+    for (int i = 0; i < contours.size(); i++) {
+        Scalar color = Scalar(255, 255, 255); //任意值
+        //每个轮廓
+        drawContours(contoursImg, contours, i, color, 1, 8, hierarchy, 0, Point());
+        //每个轮廓凸包
+        //        drawContours(contoursImg, hull, i, color, 1, 8, hierarchy, 0, Point());
+    }
+    imshow("ROI origin 轮廓", contoursImg);
+
+    // 绘制各个轮廓的最小矩形
+    vector<Rect> contourBound(contours.size()); // 定义轮廓外接矩形集合
+    vector<RotatedRect> contMinBound(contours.size()); // 定义轮廓最小外接矩形集合
+    Point2f minRectVertex[4]; // 矩形的四个端点Point
+    for (int i = 0; i < contours.size(); i++) { // 对每个轮廓
+        contourBound[i] = boundingRect(Mat(contours[i])); //计算每个轮廓正外接矩形
+        contMinBound[i] = minAreaRect(Mat(contours[i])); //计算每个轮廓最小外接矩形
+        contMinBound[i].points(minRectVertex); //把最小外接矩形四个端点复制给rect数组
+        //绘制每个轮廓正外接矩形
+        rectangle(contoursImg, Point(contourBound[i].x, contourBound[i].y),
+                  Point(contourBound[i].x + contourBound[i].width, contourBound[i].y + contourBound[i].height),
+                  Scalar(55, 55, 55), 1, 8);
+    }
+
+    //绘制所有轮廓点的正外接矩形
+    //    vector<Point> allContoursPoints = (vector<Point>)contours; // todo 二维转一维
+    sort(lostPoint.begin(), lostPoint.end(),
+         [](Point &p1, Point &p2) { return p1.x == p2.x ? p1.y < p2.y : p1.x < p2.x; }); // x+y升序
+    vector<Point> allContoursPoints; // 所有轮廓的点
+    cout << "--contours.size() " << contours.size() << endl;
+    //各个轮廓的点合并到一起
+    for (vector<vector<Point>>::iterator it = contours.begin(); it != contours.end(); ++it) {
+        cout << "contours it->size() " << it->size() << endl;
+        // v1,v2排序,先按x排序，x相同的按y排，升序
+        sort(it->begin(), it->end(),
+             [](Point &p1, Point &p2) { return p1.x == p2.x ? p1.y < p2.y : p1.x < p2.x; }); // x+y升序
+        //        for_each(it->begin(), it->end(), [](Point &p) { cout << p; });
+        vector<Point> intersectionPoint; // 轮廓点与缺失点的交集
+        intersectionPoint.clear();
+        std::set_intersection(lostPoint.begin(), lostPoint.end(), it->begin(), it->end(),
+                              insert_iterator<vector<Point>>(intersectionPoint, intersectionPoint.begin()),
+                              [](Point &p1, Point &p2) { return p1.x == p2.x ? p1.y < p2.y : p1.x < p2.x; });
+        cout << "intersectionPoint.size() " << intersectionPoint.size() << endl;
+        //        for_each(intersectionPoint.begin(), intersectionPoint.end(), [](Point &p) { cout << p; });
+        if (4 < it->size() && intersectionPoint.size() < (it->size()) * 0.3) { // todo x,0.3
+            allContoursPoints.insert(allContoursPoints.end(), it->begin(), it->end());
+            Rect validContBound = boundingRect(Mat(*it)); //计算每个轮廓正外接矩形
+            //绘制每个轮廓正外接矩形
+            rectangle(contoursImg, Point(validContBound.x, validContBound.y),
+                      Point(validContBound.x + validContBound.width, validContBound.y + validContBound.height),
+                      Scalar(0, 255, 255), 1, 8);
+        }
+    }
+
+    // 筛选后的轮廓边框
+    Rect allContoursBound = boundingRect(allContoursPoints);
+    //绘制所有轮廓正外接矩形
+    rectangle(contoursImg, Point(allContoursBound.x, allContoursBound.y),
+              Point(allContoursBound.x + allContoursBound.width, allContoursBound.y + allContoursBound.height),
+              Scalar(255, 255, 0), 2, 8);
+    imshow("ROI 轮廓矩形", contoursImg);
+
+    //设置ROI，！注意是共享内存的方式
+    roiBoundRect = allContoursBound;
+    roiImage = inputGray(roiBoundRect); // 共享内存
+    //    roiImage = grayImage(roiBoundRect); // 共享内存
+    imshow("ROI", roiImage);
 }

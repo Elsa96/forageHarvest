@@ -34,7 +34,7 @@ struct Vertex {
 };
 
 class Detection {
-private:
+  private:
     Mat srcImage;
     Mat dstImage;
     vector<Point2f> vertex2D; // 4个角点
@@ -67,13 +67,17 @@ private:
 
     void drawArmRange(); //绘制饲料下落的范围，一直在屏幕的中心区域
 
-public:
+    void getROI(Mat inputGray, Mat &roiImage, Rect &roiBoundRect);
+
+  public:
     Detection(Mat &image);
 
     ~Detection() {
     }
 
     void process();
+
+    void process_depth();
 
     vector<Point2f> getKeyPoints(); // TODO 只检测到三个点的情况还需考虑
 
