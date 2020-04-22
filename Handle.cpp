@@ -61,7 +61,7 @@ void Handle::fallPointOverflow() {
                 sqrt(a * a + b * b + c * c);
         }
         distanceAvg = distanceSum / fallPoints3D[i].pt.size(); //取平均值
-        fallPoints3D[i].setDistance(distanceAvg);
+        fallPoints3D[i].setDistance(distanceAvg); //落点与平面距离
         // 点在平面哪一侧？？
     }
 }

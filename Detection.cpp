@@ -12,7 +12,8 @@ Scalar hsvMax = Scalar(34, 255, 255);
 
 Detection::Detection(Mat &image) {
     vertex2D.resize(4); // 分配空间,reserve是个坑
-    fallPoint2D.resize(6);
+    midFallPoint2D.resize(6);
+    midFallPointLevel.resize(6);
     edgePointsUp2D.resize(6);
     edgePointsDown2D.resize(6);
     srcImage = image.clone();
@@ -23,7 +24,7 @@ void Detection::process() {
     Mat mask;
     HSVFilter(srcImage, mask);
     borderHough(mask, dstImage);
-    fallPointFind();
+    midFallPointFind();
     drawArmRange();
 }
 
@@ -32,7 +33,7 @@ vector<Point2f> Detection::getKeyPoints() {
     // 将vec1和vec2的内容合并到keyPoints中
     keyPoints.clear();
     keyPoints.insert(keyPoints.end(), vertex2D.begin(), vertex2D.end());
-    keyPoints.insert(keyPoints.end(), fallPoint2D.begin(), fallPoint2D.end());
+    keyPoints.insert(keyPoints.end(), midFallPoint2D.begin(), midFallPoint2D.end());
     return keyPoints;
 }
 
@@ -40,7 +41,7 @@ vector<Point2f> Detection::getKeyPoints() {
 vector<Point2f> Detection::getEdgePoints() {
     edgePoints.clear();
     edgePoints.insert(edgePoints.end(), vertex2D.begin(), vertex2D.end());
-    edgePoints.insert(edgePoints.end(), fallPoint2D.begin(), fallPoint2D.end());
+    edgePoints.insert(edgePoints.end(), midFallPoint2D.begin(), midFallPoint2D.end());
     edgePoints.insert(edgePoints.end(), edgePointsUp2D.begin(), edgePointsUp2D.end());
     edgePoints.insert(edgePoints.end(), edgePointsDown2D.begin(), edgePointsDown2D.end());
     return edgePoints;
@@ -348,8 +349,8 @@ void Detection::pointColor(Mat image, vector<Vertex> inputVertexSet, vector<Vert
     }
 }
 
-// 框内中间落点坐标
-void Detection::fallPointFind() {
+// 框内中间落点坐标 midFallPointFind
+void Detection::midFallPointFind() {
     sort(vertex2D.begin(), vertex2D.end(), [](Point2f &pt1, Point2f &pt2) { return pt1.y < pt2.y; }); // 按y值升序
     if (vertex2D[0].x > vertex2D[1].x) // 先比较y值最小的两个点的x值
         swap(vertex2D[0], vertex2D[1]);
@@ -372,7 +373,8 @@ void Detection::fallPointFind() {
     for (int i = 0; i < fallPointNum; ++i) {
         float x = fallPointStart - i * space; //落点从右往左数123456
         float y = midK * x + midB;
-        fallPoint2D.push_back(Point2f(x, y));
+        // midFallPoint2D
+        midFallPoint2D.push_back(Point2f(x, y));
         circle(dstImage, Point2f(x, y), 30, cv::Scalar(0, 255, 0), -1);
     }
 }
@@ -618,4 +620,97 @@ void Detection::getROI(Mat inputGray, Mat &roiImage, Rect &roiBoundRect) {
     roiImage = inputGray(roiBoundRect); // 共享内存
     //    roiImage = grayImage(roiBoundRect); // 共享内存
     imshow("ROI", roiImage);
+}
+
+double Detection::getPointMeanDepthVal(Point targetPoint) {
+    int gap = 20;
+    Rect fallPointRngRec = Rect(targetPoint.x - gap / 2, targetPoint.y - gap / 2, gap, gap);
+    Mat fallPointRange = depthImage(fallPointRngRec).clone(); // 不共享内存
+    medianBlur(fallPointRange, fallPointRange, 7);
+    Scalar meanDepthScalar = cv::mean(fallPointRange);
+    double realDepthVal = meanDepthScalar.val[0]; // 真实值
+    return realDepthVal;
+}
+
+double Detection::getPointMaxDepthVal(Point targetPoint) {
+    int gap = 20;
+    Rect fallPointRngRec = Rect(targetPoint.x - gap / 2, targetPoint.y - gap / 2, gap, gap);
+    Mat fallPointRange = depthImage(fallPointRngRec).clone(); // 不共享内存
+    medianBlur(fallPointRange, fallPointRange, 7);
+    //对Mat进行赋值和其他操作
+    double maxVal, minVal; // 必须double？？
+    Point min_loc, max_loc;
+    cv::minMaxLoc(fallPointRange, &minVal, &maxVal, &min_loc, &max_loc);
+    return maxVal;
+}
+
+void Detection::midFallPointOverflowLevel() {
+    // todo 这个排序应该前移到找到角点时
+    sort(vertex2D.begin(), vertex2D.end(), [](Point2f &pt1, Point2f &pt2) { return pt1.y < pt2.y; }); // 按y值升序
+    if (vertex2D[0].x > vertex2D[1].x) // 先比较y值最小的两个点的x值
+        swap(vertex2D[0], vertex2D[1]);
+    if (vertex2D[2].x > vertex2D[3].x)
+        swap(vertex2D[2], vertex2D[3]);
+
+    Point upLineVertexL = vertex2D[0];
+    Point upLineVertexR = vertex2D[1];
+    Point dwLineVertexL = vertex2D[2];
+    Point dwLineVertexR = vertex2D[3];
+
+    // upLine
+    float upLineK = (upLineVertexR.y - upLineVertexL.y) / (upLineVertexR.x - upLineVertexL.x);
+    float upLineB = upLineVertexL.y - upLineK * upLineVertexL.x;
+    // dwLine
+    float dwLineK = (dwLineVertexR.y - dwLineVertexL.y) / (dwLineVertexR.x - dwLineVertexL.x);
+    float dwLineB = dwLineVertexL.y - upLineK * dwLineVertexL.x;
+    int fallPointNum = 6;
+    int upStep = (upLineVertexR.x - upLineVertexL.x) / fallPointNum; //间距
+    int dwStep = (dwLineVertexR.x - dwLineVertexL.x) / fallPointNum; //间距
+
+    //第一个落点在最右
+    for (int i = 0; i < fallPointNum; ++i) {
+        // upLine
+        int upPos_x1 = upLineVertexR.x - i * upStep; //落点从右往左数123456
+        int upPos_y1 = upLineK * upPos_x1 + upLineB;
+        Point upPos1 = Point(upPos_x1, upPos_y1);
+        double upVal1 = getPointMaxDepthVal(upPos1);
+
+        int upPos_x2 = upLineVertexR.x - (i + 1) * upStep; //落点从右往左数123456
+        int upPos_y2 = upLineK * upPos_x2 + upLineB;
+        Point upPos2 = Point(upPos_x2, upPos_y2);
+        double upVal2 = getPointMaxDepthVal(upPos2);
+
+        // dwLine
+        int dwPos_x1 = dwLineVertexR.x - i * dwStep; //落点从右往左数123456
+        int dwPos_y1 = dwLineK * dwPos_x1 + dwLineB;
+        Point dwPos1 = Point(dwPos_x1, dwPos_y1);
+        double dwVal1 = getPointMaxDepthVal(dwPos1);
+
+        int dwPos_x2 = dwLineVertexR.x - (i + 1) * dwStep; //落点从右往左数123456
+        int dwPos_y2 = dwLineK * dwPos_x2 + dwLineB;
+        Point dwPos2 = Point(dwPos_x2, dwPos_y2);
+        double dwVal2 = getPointMaxDepthVal(dwPos2);
+
+        double theoryDepthVal = ((upVal1 + upVal2) / 2 + (dwVal1 + dwVal2) / 2) / 2; //中间落点 理论值
+
+        Point midFallPointPos = Point(((upPos1.x + upPos2.x) / 2 + (dwPos1.x + dwPos2.x) / 2) / 2,
+                                      ((upPos1.y + upPos2.y) / 2 + (dwPos1.y + dwPos2.y) / 2) / 2);
+        midFallPoint2D.push_back(midFallPointPos); // 记录中间落点坐标
+
+        double realDepthVal = getPointMeanDepthVal(midFallPointPos); //中间落点 实际值
+
+        double diffDepthVal = realDepthVal - theoryDepthVal;
+        int overflowLevel = 0;
+        if (diffDepthVal < 0) {
+            overflowLevel = 2; // 红色
+        } else if (diffDepthVal > 3) { // todo 以车宽为参考/map的绝对值
+            overflowLevel = 1; // 黄色
+        } else {
+            overflowLevel = 0; // 绿色
+        }
+        midFallPointLevel.push_back(overflowLevel); // 记录中间落点 满溢度结果
+
+        // 显示落点
+        circle(dstImage, midFallPointPos, 30, cv::Scalar(0, 255, 0), 3);
+    }
 }
