@@ -36,6 +36,7 @@ struct Vertex {
 class Detection {
   private:
     Mat depthImage;
+    Mat depthMap;
     Mat mapImage;
     Mat srcImage;
     Mat dstImage;

@@ -491,9 +491,19 @@ void Detection::drawArmRange() {
     line(dstImage, Point(armR, 0), Point(armR, armHeight / 4), Scalar(0, 255, 0), 20, CV_AA); //画右边的饲料下落边界
 }
 
+// todo 预设参数
+float minDist = 900;
+float maxDist = 4000;
 // 深度图获取ROI
 void Detection::getROI(Mat inputGray, Mat &roiImage, Rect &roiBoundRect) {
-    // todo 在map图根据实际工作距离截取ROI
+    // todo 根据map和depth可以算出缩放比例，得实际距离与灰度值比，而不需要直接操作map
+    // 在map图根据实际工作距离截取ROI
+    Mat depth_map = depthMap;
+    //    medianBlur(depth_map, depth_map, 9); // 只能CV_8U
+    Mat mapDistMask; // CV_8U
+    inRange(depth_map, minDist, maxDist, mapDistMask);
+    imshow("mapDistMask", mapDistMask);
+
     // todo 落柱引起的边缘可以填充为缺失值统一处理
 
     Mat grayImage; // 输出
@@ -505,6 +515,10 @@ void Detection::getROI(Mat inputGray, Mat &roiImage, Rect &roiBoundRect) {
     } else {
         grayImage = inputGray;
     }
+
+    // 只保留在范围内的的像素值，不在map范围内的被当作缺失值处理
+    grayImage = grayImage & mapDistMask; // 按位与
+    //    imshow("grayImage", grayImage);
 
     // 去除缺失值
     // 得到所有缺失值坐标 //二值化,七种常见阈值分割
@@ -610,15 +624,25 @@ void Detection::getROI(Mat inputGray, Mat &roiImage, Rect &roiBoundRect) {
     // 筛选后的轮廓边框
     Rect allContoursBound = boundingRect(allContoursPoints);
     //绘制所有轮廓正外接矩形
-    rectangle(contoursImg, Point(allContoursBound.x, allContoursBound.y),
-              Point(allContoursBound.x + allContoursBound.width, allContoursBound.y + allContoursBound.height),
-              Scalar(255, 255, 0), 2, 8);
-    imshow("ROI 轮廓矩形", contoursImg);
+    //    rectangle(contoursImg, Point(allContoursBound.x, allContoursBound.y),
+    //              Point(allContoursBound.x + allContoursBound.width, allContoursBound.y + allContoursBound.height),
+    //              Scalar(255, 255, 0), 2, 8);
+    //    imshow("ROI 筛选后轮廓矩形", contoursImg);
 
+    Point roiTopLeft = allContoursBound.tl(); //左上顶点的坐标
+    Point roiButtonRight = allContoursBound.br(); //右下顶点的坐标
+    int offset =
+        min(min(roiTopLeft.x, roiTopLeft.y), min(inputGray.cols - roiButtonRight.x, inputGray.rows - roiButtonRight.y));
+    offset = min(offset, 20); // 偏移越界处理 // todo 20 默认矩形偏移
+    // ROI矩形偏移
+    roiBoundRect = allContoursBound + Point(-offset, -offset) + Size(offset * 2, offset * 2); // 平移，缩放
     //设置ROI，！注意是共享内存的方式
-    roiBoundRect = allContoursBound;
+    // ROI图
     roiImage = inputGray(roiBoundRect); // 共享内存
     //    roiImage = grayImage(roiBoundRect); // 共享内存
+    // 绘制ROI矩形
+    rectangle(contoursImg, roiBoundRect, Scalar(255, 255, 0), 2, 8);
+    imshow("ROI 轮廓矩形", contoursImg);
     imshow("ROI", roiImage);
 }
 
