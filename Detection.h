@@ -35,9 +35,9 @@ struct Vertex {
 
 class Detection {
   private:
+    Mat colorImage;
     Mat depthImage;
-    Mat depthMap;
-    Mat mapImage;
+    Mat depthMapp;
     Mat srcImage;
     Mat dstImage;
     vector<Point2f> vertex2D; // 4个角点
@@ -71,6 +71,7 @@ class Detection {
 
     void drawArmRange(); //绘制饲料下落的范围，一直在屏幕的中心区域
 
+    void getSrcImage(Mat &colorImage, Mat &depthImage, Mat &depthMap);
     void getROI(Mat inputGray, Mat &roiImage, Rect &roiBoundRect);
     double getPointMeanDepthVal(Point targetPoint);
     double getPointMaxDepthVal(Point targetPoint);
@@ -78,13 +79,14 @@ class Detection {
 
   public:
     Detection(Mat &image);
+    Detection(Mat &colorImg, Mat &depthImg, Mat &depthMap);
 
     ~Detection() {
     }
 
     void process();
 
-    void process_depth();
+    void process_depth(Mat &detectionRes);
 
     vector<Point2f> getKeyPoints(); // TODO 只检测到三个点的情况还需考虑
 

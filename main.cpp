@@ -5,7 +5,7 @@
 
 int main(int argc, char *argv[]) {
 
-#if 0
+#if 0 // 工作
     Cam zedCamera;
     zedCamera.cameraStart();
     char key;
@@ -38,9 +38,8 @@ int main(int argc, char *argv[]) {
     imshow("原始图像", image);
     waitKey(0);*/
 
-#else // 测试
+#elif 0 // color 测试
     Mat image = imread("../images/yellowBorder6.jpg");
-    //    Mat image = imread("../images/depth-1.jpg");
 
     namedWindow("原始图像", WINDOW_NORMAL);
     resizeWindow("原始图像", 1000, 1000);
@@ -52,6 +51,36 @@ int main(int argc, char *argv[]) {
     namedWindow("目标图像", WINDOW_NORMAL);
     resizeWindow("目标图像", 1000, 1000);
     imshow("目标图像", image);
+
+    waitKey(0);
+
+#elif 1 // depth 测试
+
+    Mat colorImg = imread("../images/color-1.png");
+    if (!colorImg.data) {
+        cout << "读取图片错误" << endl;
+    }
+    Mat depthImg = imread("../images/depth-1.png");
+    if (!depthImg.data) {
+        cout << "读取图片错误" << endl;
+    }
+
+    Mat depthMap;
+    depthImg.convertTo(depthMap, CV_32FC1, 18); // CV_8UC4 -> CV_32FC1  // alpha = 2^24?
+    //    imshow("depth_map_ocv", depth_map_ocv);
+    //    cout << depth_map_ocv << endl;
+
+    namedWindow("深度图", WINDOW_NORMAL);
+    resizeWindow("深度图", 1000, 1000);
+    imshow("深度图", depthImg);
+
+    Mat detectRes;
+    Detection detection(colorImg, depthImg, depthMap); //检测
+    detection.process_depth(detectRes);
+
+    namedWindow("目标图像", WINDOW_NORMAL);
+    resizeWindow("目标图像", 1000, 1000);
+    imshow("目标图像", detectRes);
 
     waitKey(0);
 

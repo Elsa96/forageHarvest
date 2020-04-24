@@ -4,20 +4,26 @@
 
 #include "Detection.h"
 
-////色相（黄色）
+//色相,饱和度,亮度（黄色）
 Scalar hsvMin = Scalar(26, 43, 46);
 Scalar hsvMax = Scalar(34, 255, 255);
 // cv::Mat hsvMin_mat = cv::Mat(hsvMin); //将vector变成单列的mat
 // cv::Mat hsvMax_mat = cv::Mat(hsvMax); //将vector变成单列的mat
 
-Detection::Detection(Mat &image) {
+Detection::Detection(Mat &colorImg) {
     vertex2D.resize(4); // 分配空间,reserve是个坑
     midFallPoint2D.resize(6);
     midFallPointLevel.resize(6);
     edgePointsUp2D.resize(6);
     edgePointsDown2D.resize(6);
-    srcImage = image.clone();
-    dstImage = image;
+    srcImage = colorImg.clone();
+    dstImage = colorImg;
+}
+
+Detection::Detection(Mat &colorImg, Mat &depthImg, Mat &depthMap) : Detection(colorImg) {
+    this->colorImage = colorImg;
+    this->depthImage = depthImg;
+    this->depthMapp = depthMap;
 }
 
 void Detection::process() {
@@ -491,6 +497,22 @@ void Detection::drawArmRange() {
     line(dstImage, Point(armR, 0), Point(armR, armHeight / 4), Scalar(0, 255, 0), 20, CV_AA); //画右边的饲料下落边界
 }
 
+void Detection::process_depth(Mat &detectionRes) {
+
+    Mat roiImg;
+    Rect roiRect;
+    getROI(depthImage, roiImg, roiRect);
+    //    imshow("getROI", roiImg);
+
+    detectionRes = roiImg;
+}
+
+void Detection::getSrcImage(Mat &colorImg, Mat &depthImg, Mat &depthMap_) {
+    this->colorImage = colorImg;
+    this->depthImage = depthImg;
+    this->depthMapp = depthMap_;
+}
+
 // todo 预设参数
 float minDist = 900;
 float maxDist = 4000;
@@ -498,7 +520,7 @@ float maxDist = 4000;
 void Detection::getROI(Mat inputGray, Mat &roiImage, Rect &roiBoundRect) {
     // todo 根据map和depth可以算出缩放比例，得实际距离与灰度值比，而不需要直接操作map
     // 在map图根据实际工作距离截取ROI
-    Mat depth_map = depthMap;
+    Mat depth_map = depthMapp;
     //    medianBlur(depth_map, depth_map, 9); // 只能CV_8U
     Mat mapDistMask; // CV_8U
     inRange(depth_map, minDist, maxDist, mapDistMask);
@@ -511,7 +533,6 @@ void Detection::getROI(Mat inputGray, Mat &roiImage, Rect &roiBoundRect) {
     // 转成灰度
     if (inputGray.type() != CV_8UC1) {
         cvtColor(inputGray, grayImage, CV_BGR2GRAY);
-        //    imshow("grayImage", grayImage);
     } else {
         grayImage = inputGray;
     }
@@ -541,7 +562,6 @@ void Detection::getROI(Mat inputGray, Mat &roiImage, Rect &roiBoundRect) {
     // 中值滤波
     //    Mat medianBlurImage;
     medianBlur(grayImage, grayImage, 9); //第三个参数为int类型的ksize，必须为大于1的奇数（3、5、7....）
-    //    namedWindow("中值滤波");
     //    imshow("中值滤波", grayImage);
 
     Mat cannyImg;
@@ -557,7 +577,7 @@ void Detection::getROI(Mat inputGray, Mat &roiImage, Rect &roiBoundRect) {
     // 仅调试显示
     Mat contoursImg = Mat::zeros(inputGray.size(), CV_8UC3);
 
-    vector<vector<Point>> contours; // 找到的各个轮廓的点
+    vector<vector<Point>> contours; // 找到的各个轮廓的点,二维
     vector<Vec4i> hierarchy; // 轮廓层次结构
     // 寻找轮廓
     // 参数：二值图,找到的轮廓点,轮廓层次结构，轮廓的检索模式，轮廓估计的方法，偏移
@@ -592,17 +612,16 @@ void Detection::getROI(Mat inputGray, Mat &roiImage, Rect &roiBoundRect) {
     }
 
     //绘制所有轮廓点的正外接矩形
-    //    vector<Point> allContoursPoints = (vector<Point>)contours; // todo 二维转一维
+    // v1,v2排序,先按x排序，x相同的按y排，升序
     sort(lostPoint.begin(), lostPoint.end(),
-         [](Point &p1, Point &p2) { return p1.x == p2.x ? p1.y < p2.y : p1.x < p2.x; }); // x+y升序
+         [](Point &p1, Point &p2) { return p1.x == p2.x ? p1.y < p2.y : p1.x < p2.x; }); // 升序
     vector<Point> allContoursPoints; // 所有轮廓的点
     cout << "--contours.size() " << contours.size() << endl;
     //各个轮廓的点合并到一起
     for (vector<vector<Point>>::iterator it = contours.begin(); it != contours.end(); ++it) {
         cout << "contours it->size() " << it->size() << endl;
-        // v1,v2排序,先按x排序，x相同的按y排，升序
         sort(it->begin(), it->end(),
-             [](Point &p1, Point &p2) { return p1.x == p2.x ? p1.y < p2.y : p1.x < p2.x; }); // x+y升序
+             [](Point &p1, Point &p2) { return p1.x == p2.x ? p1.y < p2.y : p1.x < p2.x; }); // 升序
         //        for_each(it->begin(), it->end(), [](Point &p) { cout << p; });
         vector<Point> intersectionPoint; // 轮廓点与缺失点的交集
         intersectionPoint.clear();
@@ -620,26 +639,16 @@ void Detection::getROI(Mat inputGray, Mat &roiImage, Rect &roiBoundRect) {
                       Scalar(0, 255, 255), 1, 8);
         }
     }
-
     // 筛选后的轮廓边框
     Rect allContoursBound = boundingRect(allContoursPoints);
-    //绘制所有轮廓正外接矩形
-    //    rectangle(contoursImg, Point(allContoursBound.x, allContoursBound.y),
-    //              Point(allContoursBound.x + allContoursBound.width, allContoursBound.y + allContoursBound.height),
-    //              Scalar(255, 255, 0), 2, 8);
-    //    imshow("ROI 筛选后轮廓矩形", contoursImg);
 
-    Point roiTopLeft = allContoursBound.tl(); //左上顶点的坐标
-    Point roiButtonRight = allContoursBound.br(); //右下顶点的坐标
-    int offset =
-        min(min(roiTopLeft.x, roiTopLeft.y), min(inputGray.cols - roiButtonRight.x, inputGray.rows - roiButtonRight.y));
-    offset = min(offset, 20); // 偏移越界处理 // todo 20 默认矩形偏移
     // ROI矩形偏移
-    roiBoundRect = allContoursBound + Point(-offset, -offset) + Size(offset * 2, offset * 2); // 平移，缩放
-    //设置ROI，！注意是共享内存的方式
-    // ROI图
+    int offset = 20; // todo 20 默认矩形偏移
+    allContoursBound = allContoursBound + Point(-offset, -offset) + Size(offset * 2, offset * 2); // 平移，缩放
+    Rect allImgBound = Rect(0, 0, inputGray.cols, inputGray.rows);
+    roiBoundRect = allImgBound & allContoursBound; // 矩形交集
+    //设置ROI图，！注意是共享内存的方式
     roiImage = inputGray(roiBoundRect); // 共享内存
-    //    roiImage = grayImage(roiBoundRect); // 共享内存
     // 绘制ROI矩形
     rectangle(contoursImg, roiBoundRect, Scalar(255, 255, 0), 2, 8);
     imshow("ROI 轮廓矩形", contoursImg);
