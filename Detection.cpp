@@ -505,6 +505,9 @@ void Detection::process_depth(Mat &detectionRes) {
     //    imshow("getROI", roiImg);
 
     detectionRes = roiImg;
+
+    Mat greMask;
+    greenMask(colorImage, greMask);
 }
 
 void Detection::getSrcImage(Mat &colorImg, Mat &depthImg, Mat &depthMap_) {
@@ -539,6 +542,7 @@ void Detection::getROI(Mat inputGray, Mat &roiImage, Rect &roiBoundRect) {
 
     // 只保留在范围内的的像素值，不在map范围内的被当作缺失值处理
     grayImage = grayImage & mapDistMask; // 按位与
+    //    cv::bitwise_and(grayImage, mapDistMask, grayImage); // 按位与,可加掩膜
     //    imshow("grayImage", grayImage);
 
     // 去除缺失值
@@ -746,4 +750,78 @@ void Detection::midFallPointOverflowLevel() {
         // 显示落点
         circle(dstImage, midFallPointPos, 30, cv::Scalar(0, 255, 0), 3);
     }
+}
+
+void Detection::greenMask(Mat colorImg, Mat &outMask) {
+    //  标准 HSV 范围： (100, 30, 10) -- (160, 70, 70)
+    // openCV的hsv与标准HSV范围不同，做了如下的变换
+    //    h= H/2;    s = (float)S/100*255;    v = (float)v/100*255;
+    //色相,饱和度,亮度（绿色）
+    Scalar hsvMin_G = Scalar(50, 70, 30);
+    Scalar hsvMax_G = Scalar(75, 180, 200);
+
+    Mat hsvImage;
+    // bgr转hsv
+    cvtColor(colorImg, hsvImage, CV_BGR2HSV);
+
+    Mat greenMask;
+    inRange(hsvImage, hsvMin_G, hsvMax_G, greenMask);
+    imshow("inRange", greenMask);
+
+    //形态学运算
+    Mat element = getStructuringElement(MORPH_RECT, Size(3, 3));
+    morphologyEx(greenMask, greenMask, MORPH_OPEN, element); //开运算(去除小白点)
+    element = getStructuringElement(MORPH_RECT, Size(11, 11));
+    morphologyEx(greenMask, greenMask, MORPH_CLOSE, element); // 闭运算(去除黑点,连接一些连通域)
+    imshow("greenMask", greenMask);
+
+    vector<vector<Point>> contours; // 找到的各个轮廓的点,二维
+    vector<Vec4i> hierarchy; // 轮廓层次结构
+    // 寻找轮廓
+    // 参数：二值图,找到的轮廓点,轮廓层次结构，轮廓的检索模式，轮廓估计的方法，偏移
+    findContours(greenMask, contours, hierarchy, CV_RETR_EXTERNAL, CV_CHAIN_APPROX_NONE, Point(0, 0));
+    // 面积最大的轮廓contours[0]
+    sort(contours.begin(), contours.end(),
+         [](vector<Point> &c1, vector<Point> &c2) { return contourArea(c1) > contourArea(c2); }); // 降序
+
+    // 仅调试显示
+    Mat contoursImg = Mat::zeros(colorImg.size(), CV_8UC3);
+    Scalar color = Scalar(255, 255, 255); //任意值
+    drawContours(contoursImg, contours, 0, color, 1, 8, hierarchy, 0, Point());
+    imshow("contoursImg", contoursImg);
+
+    //    //拟合多边形
+    //    vector<vector<Point>> contours_poly(contours.size()); // 存储拟合多边形点集
+    //    approxPolyDP(contours[0], contours_poly[0], 18, true);
+    //    //绘制拟合后的多边形
+    //    drawContours(contoursImg, contours_poly, 0, color, 1, 8);
+    //    imshow("contoursImg", contoursImg);
+
+    //    // 计算轮廓矩
+    //    Moments mu = moments(contours[0], false);
+    //    //  计算轮廓中心矩
+    //    Point innerPoint = Point(mu.m10 / mu.m00, mu.m01 / mu.m00);
+    //    // 点是否在轮廓内,多边形测试
+    //    double cntDistance = 0;
+    //    while (cntDistance <= 0) {
+    //        cntDistance = pointPolygonTest(contours[0], innerPoint, true);
+    //        innerPoint += Point(5, 5);
+    //        cout << "-.-" << endl;
+    //    }
+    //    // todo 漫水填充？？有bug
+    //    Mat fillImg = colorImg.clone();
+    //    Rect ccomp;
+    //    floodFill(fillImg, innerPoint, Scalar(0, 0, 0), &ccomp, Scalar(5, 5, 5), Scalar(8, 8, 8));
+    //    imshow("fillImg", fillImg);
+
+    outMask = Mat::zeros(colorImg.size(), CV_8UC1);
+    // 填充轮廓内部 -1
+    drawContours(outMask, contours, 0, Scalar(255), -1, 8, hierarchy, 0, Point());
+    imshow("outMask", outMask);
+
+    Mat greenBack;
+    cv::bitwise_and(colorImg, colorImg, greenBack, outMask);
+    imshow("greenBack", greenBack);
+
+    imshow("colorImg", colorImg);
 }

@@ -56,7 +56,7 @@ int main(int argc, char *argv[]) {
 
 #elif 1 // depth 测试
 
-    Mat colorImg = imread("../images/color-1.png");
+    Mat colorImg = imread("../images/h2.png", IMREAD_COLOR);
     if (!colorImg.data) {
         cout << "读取图片错误" << endl;
     }

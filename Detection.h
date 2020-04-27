@@ -71,6 +71,7 @@ class Detection {
 
     void drawArmRange(); //绘制饲料下落的范围，一直在屏幕的中心区域
 
+    void greenMask(Mat colorImg, Mat &outMask);
     void getSrcImage(Mat &colorImage, Mat &depthImage, Mat &depthMap);
     void getROI(Mat inputGray, Mat &roiImage, Rect &roiBoundRect);
     double getPointMeanDepthVal(Point targetPoint);
