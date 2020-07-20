@@ -9,7 +9,9 @@ int main(int argc, char *argv[]) {
     Cam zedCamera;
     zedCamera.cameraStart();
     char key;
-    while (key) {
+    while (1) {
+        if (waitKey(1) & 0xFF == 27)
+            break;
         cv::Mat image = zedCamera.getImage(0); //获取彩图
         //    Mat image = imread("../images/yellowBorder6.jpg");
 
