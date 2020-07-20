@@ -25,17 +25,6 @@ int Cam::cameraStart() {
 
     // Set runtime parameters after opening the camera
     runtime_parameters.sensing_mode = SENSING_MODE_STANDARD; // Use STANDARD sensing mode
-
-    // A new image is available if grab() returns ERROR_CODE::SUCCESS
-    // TODO 这里一直运行吗？还是到main()里面一直运行
-    if (zed.grab(runtime_parameters) == ERROR_CODE::SUCCESS) {
-        // Retrieve left image
-        zed.retrieveImage(color, VIEW_LEFT);
-        // Retrieve depth map. Depth is aligned on the left image
-        zed.retrieveMeasure(depth, MEASURE_DEPTH);
-        // Retrieve colored point cloud. Point cloud is aligned on the left image.
-        zed.retrieveMeasure(pointCloud, MEASURE_XYZRGBA);
-    }
 }
 
 cv::Mat Cam::slMat2cvMat(sl::Mat &input) {
@@ -76,6 +65,16 @@ cv::Mat Cam::slMat2cvMat(sl::Mat &input) {
 }
 
 cv::Mat Cam::getImage(int key) {
+    // A new image is available if grab() returns ERROR_CODE::SUCCESS
+    // TODO 这里一直运行吗？还是到main()里面一直运行
+    if (zed.grab(runtime_parameters) == ERROR_CODE::SUCCESS) {
+        // Retrieve left image
+        zed.retrieveImage(color, VIEW_LEFT);
+        // Retrieve depth map. Depth is aligned on the left image
+        zed.retrieveMeasure(depth, MEASURE_DEPTH);
+        // Retrieve colored point cloud. Point cloud is aligned on the left image.
+        zed.retrieveMeasure(pointCloud, MEASURE_XYZRGBA);
+    }
     if (key == 0)
         return slMat2cvMat(color);
     else if (key == 1)
