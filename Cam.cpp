@@ -27,6 +27,10 @@ int Cam::cameraStart() {
     runtime_parameters.sensing_mode = SENSING_MODE_STANDARD; // Use STANDARD sensing mode
 }
 
+void Cam::cameraClose() {
+    zed.close();
+}
+
 cv::Mat Cam::slMat2cvMat(sl::Mat &input) {
     // Mapping between MAT_TYPE and CV_TYPE
     int cv_type = -1;

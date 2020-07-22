@@ -34,7 +34,7 @@ struct Vertex {
 };
 
 class Detection {
-  private:
+private:
     Mat colorImage;
     Mat depthImage;
     Mat depthMapp;
@@ -48,6 +48,8 @@ class Detection {
     vector<Point2f> edgePointsUp2D; // 6个上车斗边缘点
     vector<Point2f> edgePointsDown2D; // 6个下车斗边缘点
     vector<Point2f> edgePoints; // 4个角点+6个落点+12个边缘点
+
+    bool isHasLine;
 
     void HSVFilter(Mat inputImage, Mat &outputImage); // TODO 参数有必要省略吗
 
@@ -72,14 +74,20 @@ class Detection {
     void drawArmRange(); //绘制饲料下落的范围，一直在屏幕的中心区域
 
     void greenMask(Mat colorImg, Mat &outMask);
+
     void getSrcImage(Mat &colorImage, Mat &depthImage, Mat &depthMap);
+
     void getROI(Mat inputGray, Mat &roiImage, Rect &roiBoundRect);
+
     double getPointMeanDepthVal(Point targetPoint);
+
     double getPointMaxDepthVal(Point targetPoint);
+
     void midFallPointOverflowLevel();
 
-  public:
+public:
     Detection(Mat &image);
+
     Detection(Mat &colorImg, Mat &depthImg, Mat &depthMap);
 
     ~Detection() {
@@ -92,6 +100,8 @@ class Detection {
     vector<Point2f> getKeyPoints(); // TODO 只检测到三个点的情况还需考虑
 
     vector<Point2f> getEdgePoints();
+
+    bool isExistLine();
 };
 
 #endif // FORAGEHARVEST_DETECTION_H

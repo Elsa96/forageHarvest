@@ -7,6 +7,7 @@
 //色相,饱和度,亮度（黄色）
 Scalar hsvMin = Scalar(26, 43, 46);
 Scalar hsvMax = Scalar(34, 255, 255);
+
 // cv::Mat hsvMin_mat = cv::Mat(hsvMin); //将vector变成单列的mat
 // cv::Mat hsvMax_mat = cv::Mat(hsvMax); //将vector变成单列的mat
 
@@ -30,6 +31,8 @@ void Detection::process() {
     Mat mask;
     HSVFilter(srcImage, mask);
     borderHough(mask, dstImage);
+    if (!isHasLine)
+        return;
     midFallPointFind();
     drawArmRange();
 }
@@ -66,7 +69,7 @@ void Detection::HSVFilter(Mat inputImage, Mat &outputImage) {
 
     //形态学运算
     Mat element = getStructuringElement(MORPH_RECT, Size(5, 5));
-    erode(mask, mask, element); //腐蚀
+    erode(mask, mask, element); //腐蚀 TODO 直接改成闭运算？？
     dilate(mask, mask, element); //膨胀
 
     outputImage = mask;
@@ -76,6 +79,12 @@ void Detection::HSVFilter(Mat inputImage, Mat &outputImage) {
 void Detection::borderHough(Mat inputImage, Mat &outputImage) {
     vector<Vec4f> lines;
     HoughLinesP(inputImage, lines, 1, CV_PI / 180, 900, 500, 10); //第五个参数：超过这个值才被检测出直线
+
+    //排除没有检测到直线的情况
+    if (lines.size() == 0) {
+        isHasLine = false;
+        return;
+    }
 
     int imgW = inputImage.cols;
     int imgH = inputImage.rows;
@@ -250,8 +259,8 @@ void Detection::getCrossPointAndIncrement(Vec4f LineA, Vec4f LineB, vector<Verte
     crossPoint.x = (ka * LineA[0] - LineA[1] - kb * LineB[0] + LineB[1]) / (ka - kb);
     crossPoint.y = (ka * kb * (LineA[0] - LineB[0]) + ka * LineB[1] - kb * LineA[1]) / (ka - kb);
 
-    int x = (int)(round)(crossPoint.x);
-    int y = (int)(round)(crossPoint.y);
+    int x = (int) (round)(crossPoint.x);
+    int y = (int) (round)(crossPoint.y);
 
     int VertexGap = 40000; // TODO VerTexGap
 
@@ -442,14 +451,14 @@ void Detection::drawLines(vector<Vertex> top4vertexSet, Mat &outputImage) {
     int crossPoint = 0;
     for (int i = 1; i < 4; i++) { //第0个点与第i个点连线
         double temp_k =
-            (double)(top4vertexSet[i].y - top4vertexSet[0].y) / (double)(top4vertexSet[i].x - top4vertexSet[0].x);
-        double temp_b = (double)top4vertexSet[0].y - temp_k * (double)top4vertexSet[0].x;
+                (double) (top4vertexSet[i].y - top4vertexSet[0].y) / (double) (top4vertexSet[i].x - top4vertexSet[0].x);
+        double temp_b = (double) top4vertexSet[0].y - temp_k * (double) top4vertexSet[0].x;
 
         int flag = 0; //标志为正还是为负
         for (int j = 1; j < 4; j++) {
             if (j != i) {
                 //第j个点的y坐标减线上坐标
-                double diff = (double)top4vertexSet[j].y - (temp_k * (double)top4vertexSet[j].x + temp_b);
+                double diff = (double) top4vertexSet[j].y - (temp_k * (double) top4vertexSet[j].x + temp_b);
                 if (flag == 0) {
                     flag = diff > 0 ? 1 : -1;
                 } else {
@@ -519,6 +528,7 @@ void Detection::getSrcImage(Mat &colorImg, Mat &depthImg, Mat &depthMap_) {
 // todo 预设参数
 float minDist = 900;
 float maxDist = 4000;
+
 // 深度图获取ROI
 void Detection::getROI(Mat inputGray, Mat &roiImage, Rect &roiBoundRect) {
     // todo 根据map和depth可以算出缩放比例，得实际距离与灰度值比，而不需要直接操作map
@@ -824,4 +834,8 @@ void Detection::greenMask(Mat colorImg, Mat &outMask) {
     imshow("greenBack", greenBack);
 
     imshow("colorImg", colorImg);
+}
+
+bool Detection::isExistLine() {
+    return isHasLine;
 }

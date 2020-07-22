@@ -1,64 +1,43 @@
-//#include "Cam.h"
+#include "Cam.h"
 #include "Detection.h"
 #include "Handle.h"
-#include "imageframe.hpp"
 #include <iostream>
 
 int main(int argc, char *argv[]) {
 
 #if 1 // 工作
-    //    Cam zedCamera;
-    //    zedCamera.cameraStart();
-
-    cout << "++++++ camera Init ++++++ " << endl;
-    // * camera Init
-    ImageFrame::camInit_zed();
-    ImageFrame::setResolutionScale(1); // 必须在创建对象前设置尺寸,默认1
-    ImageFrame imageFrame; // 构造自动转换
-
+    Cam zedCamera;
+    zedCamera.cameraStart();
+    namedWindow("原始图像", WINDOW_NORMAL);
     while (1) {
         if (waitKey(1) & 0xFF == 27)
             break;
-        // 获取图片
-        imageFrame.ZED_grab_Img();
-        // !  color CV_8UC3, depth CV_8UC3, p3d CV_32FC3
-        cv::Mat color = imageFrame.color_ocv;
-        cv::Mat depth = imageFrame.depth_img_ocv;
-        cv::Mat p3d = imageFrame.point_cloud_C3_ocv;
+        cv::Mat image = zedCamera.getImage(0); //获取彩图
+        imshow("原始图像", image);
+        waitKey(10);
 
-        //        cv::Mat image = zedCamera.getImage(0); //获取彩图
-        //    Mat image = imread("../images/yellowBorder6.jpg");
-
-        namedWindow("原始图像", WINDOW_NORMAL);
-        resizeWindow("原始图像", 1000, 1000);
-        imshow("原始图像", color);
-        waitKey(0);
-
-        Detection detection(color); //检测
+        Detection detection(image); //检测
         detection.process();
+        if (!detection.isExistLine()) {
+            cout << "no lines" << endl;
+            continue;
+        }
 
-        cout << "----------" << endl;
-
-        namedWindow("目标图像", WINDOW_NORMAL);
-        resizeWindow("目标图像", 1000, 1000);
-        imshow("目标图像", color);
-        waitKey(0);
-
-        //        // Point2i
-        //        vector<Point2f> keyPoints2D; //获取角点+落点的像素坐标
-        //        keyPoints2D = detection.getKeyPoints();
-        //        vector<vector<Point3f>> keyPoints3D; //获取角点+落点的点云图上的坐标,落点周边范围
-        //        keyPoints3D = zedCamera.get3DPoint(keyPoints2D);
+        // Point2i
+        vector<Point2f> keyPoints2D; //获取角点+落点的像素坐标
+        keyPoints2D = detection.getKeyPoints();
+        vector<vector<Point3f>> keyPoints3D; //获取角点+落点的点云图上的坐标,落点周边范围
+        keyPoints3D = zedCamera.get3DPoint(keyPoints2D);
 
         //        vector<Point2f> edgePoints2D; //获取角点+落点+边缘点的像素坐标
         //        edgePoints2D = detection.getEdgePoints();
         //        vector<vector<Point3f>> edgePoints3D; //获取角点+落点+边缘点的点云图上的坐标
         //        edgePoints3D = zedCamera.get3DPoint(edgePoints2D);
 
-        //        Handle handle(image);
-        //        handle.setKeyPoints(keyPoints2D, keyPoints3D);
-        //        //        handle.setKeyPoints(edgePoints2D, edgePoints3D);
-        //        handle.process();
+        Handle handle(image);
+        handle.setKeyPoints(keyPoints2D, keyPoints3D);
+        //        handle.setKeyPoints(edgePoints2D, edgePoints3D);
+        handle.process();
     }
 
     /*    namedWindow("原始图像", WINDOW_NORMAL);
@@ -113,6 +92,6 @@ int main(int argc, char *argv[]) {
     waitKey(0);
 
 #endif
-
+    zedCamera.cameraClose();
     return 0;
 }
