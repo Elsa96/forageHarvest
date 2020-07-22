@@ -5,18 +5,23 @@
 
 int main(int argc, char *argv[]) {
 
-#if 0 // 工作
+#if 1 // 工作
     Cam zedCamera;
     zedCamera.cameraStart();
-    char key;
+    namedWindow("原始图像", WINDOW_NORMAL);
     while (1) {
         if (waitKey(1) & 0xFF == 27)
             break;
         cv::Mat image = zedCamera.getImage(0); //获取彩图
-        //    Mat image = imread("../images/yellowBorder6.jpg");
+        imshow("原始图像", image);
+        waitKey(10);
 
         Detection detection(image); //检测
         detection.process();
+        if (!detection.isExistLine()) {
+            cout << "no lines" << endl;
+            continue;
+        }
 
         // Point2i
         vector<Point2f> keyPoints2D; //获取角点+落点的像素坐标
@@ -56,7 +61,7 @@ int main(int argc, char *argv[]) {
 
     waitKey(0);
 
-#elif 1 // depth 测试
+#elif 0 // depth 测试
 
     Mat colorImg = imread("../images/h2.png", IMREAD_COLOR);
     if (!colorImg.data) {
@@ -87,6 +92,6 @@ int main(int argc, char *argv[]) {
     waitKey(0);
 
 #endif
-
+    zedCamera.cameraClose();
     return 0;
 }
