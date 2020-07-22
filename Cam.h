@@ -14,7 +14,7 @@ using namespace cv;
 using namespace std;
 
 class Cam {
-  private:
+private:
     sl::Camera zed;
     sl::InitParameters init_parameters;
     sl::RuntimeParameters runtime_parameters;
@@ -24,8 +24,10 @@ class Cam {
 
     cv::Mat slMat2cvMat(sl::Mat &input);
 
-  public:
+public:
     int cameraStart();
+
+    void cameraClose();
 
     //    void intrinsic();
 
