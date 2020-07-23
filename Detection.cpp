@@ -91,7 +91,7 @@ void Detection::borderHough(Mat inputImage, Mat &outputImage) {
 
     cout << "图片的宽为" << imgW << endl;
     cout << "图片的高为" << imgH << endl;
-    cout << "************************************" << endl;
+    //    cout << "************************************" << endl;
 
     // TODO 如何精简
     int gap = 50;
