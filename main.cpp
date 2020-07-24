@@ -10,7 +10,7 @@ int main(int argc, char *argv[]) {
     zedCamera.cameraStart();
     namedWindow("原始图像", WINDOW_NORMAL);
     while (1) {
-        if (waitKey(1) & 0xFF == 27)
+        if (waitKey(10) == 27)
             break;
         cv::Mat image = zedCamera.getImage(0); //获取彩图
         imshow("原始图像", image);
