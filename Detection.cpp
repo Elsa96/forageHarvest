@@ -5,8 +5,8 @@
 #include "Detection.h"
 
 //色相,饱和度,亮度（黄色）
-Scalar hsvMin = Scalar(156, 43, 46);
-Scalar hsvMax = Scalar(180, 255, 255);
+Scalar hsvMin = Scalar(26, 43, 46);
+Scalar hsvMax = Scalar(34, 255, 255);
 
 // cv::Mat hsvMin_mat = cv::Mat(hsvMin); //将vector变成单列的mat
 // cv::Mat hsvMax_mat = cv::Mat(hsvMax); //将vector变成单列的mat
@@ -118,6 +118,8 @@ void Detection::borderHough(Mat inputImage, Mat &outputImage) {
 
     vector<Vertex> top4vertexSet;
     mostIntersections(lines, top4vertexSet, 4, imgW, imgH);
+
+    cout << "直线最大相交次数：" << top4vertexSet[0].crossTimes << endl;
 
     //判断有几条直线
     if (top4vertexSet[0].crossTimes > 4 * top4vertexSet[1].crossTimes) { // TODO 参数4
