@@ -5,8 +5,8 @@
 #include "Detection.h"
 
 //色相,饱和度,亮度（黄色）
-Scalar hsvMin = Scalar(26, 43, 46);
-Scalar hsvMax = Scalar(34, 255, 255);
+Scalar hsvMin = Scalar(156, 43, 46);
+Scalar hsvMax = Scalar(180, 255, 255);
 
 // cv::Mat hsvMin_mat = cv::Mat(hsvMin); //将vector变成单列的mat
 // cv::Mat hsvMax_mat = cv::Mat(hsvMax); //将vector变成单列的mat
@@ -19,6 +19,7 @@ Detection::Detection(Mat &colorImg) {
     edgePointsDown2D.resize(6);
     srcImage = colorImg.clone();
     dstImage = colorImg;
+    isHasLine = true;
 }
 
 Detection::Detection(Mat &colorImg, Mat &depthImg, Mat &depthMap) : Detection(colorImg) {
@@ -73,25 +74,23 @@ void Detection::HSVFilter(Mat inputImage, Mat &outputImage) {
     dilate(mask, mask, element); //膨胀
 
     outputImage = mask;
+    imshow("binary image", outputImage);
 }
 
 // 霍夫直线检测
 void Detection::borderHough(Mat inputImage, Mat &outputImage) {
     vector<Vec4f> lines;
-    HoughLinesP(inputImage, lines, 1, CV_PI / 180, 900, 500, 10); //第五个参数：超过这个值才被检测出直线
-
+    HoughLinesP(inputImage, lines, 1, CV_PI / 180, 90, 50, 10); //第五个参数：超过这个值才被检测出直线
     //排除没有检测到直线的情况
-    if (lines.size() == 0) {
+    if (lines.empty()) {
         isHasLine = false;
         return;
+    } else{
+        cout << "lines number: " << lines.size() << endl;
     }
 
     int imgW = inputImage.cols;
     int imgH = inputImage.rows;
-
-    cout << "图片的宽为" << imgW << endl;
-    cout << "图片的高为" << imgH << endl;
-    cout << "************************************" << endl;
 
     // TODO 如何精简
     int gap = 50;
@@ -202,7 +201,7 @@ void Detection::borderHough(Mat inputImage, Mat &outputImage) {
             drawLines(vertexResult, outputImage);
             drawPoints(vertexResult, outputImage);
         }
-    } else if (top4vertexSet[0].crossTimes < 1000) { // TODO 参数1000
+    } else if (top4vertexSet[0].crossTimes < 100) { // TODO 参数1000
         cout << "只有两条直线，平行" << endl;
         vector<Vertex> top4vertexSet_2;
         mostIntersections(lines2Sides, top4vertexSet_2, 4, imgW, imgH);
