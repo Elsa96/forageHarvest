@@ -22,6 +22,7 @@ int main(int argc, char *argv[]) {
             continue;
         }
         imshow("目标图像", image);
+//        waitKey(0);
 
         // Point2i
         vector<Point2f> keyPoints2D; //获取角点+落点的像素坐标

@@ -6,7 +6,7 @@
 
 //色相,饱和度,亮度（黄色）
 Scalar hsvMin = Scalar(26, 43, 46);
-Scalar hsvMax = Scalar(34, 255, 255);
+Scalar hsvMax = Scalar(77, 255, 255);
 
 // cv::Mat hsvMin_mat = cv::Mat(hsvMin); //将vector变成单列的mat
 // cv::Mat hsvMax_mat = cv::Mat(hsvMax); //将vector变成单列的mat
@@ -82,10 +82,11 @@ void Detection::borderHough(Mat inputImage, Mat &outputImage) {
     vector<Vec4f> lines;
     HoughLinesP(inputImage, lines, 1, CV_PI / 180, 90, 50, 10); //第五个参数：超过这个值才被检测出直线
     //排除没有检测到直线的情况
-    if (lines.empty()) {
+    if (lines.empty() || lines.size() < 10) { //TODO lines.size()
         isHasLine = false;
         return;
-    } else{
+    } else {
+        cout << "**********************" << endl;
         cout << "lines number: " << lines.size() << endl;
     }
 
@@ -93,7 +94,7 @@ void Detection::borderHough(Mat inputImage, Mat &outputImage) {
     int imgH = inputImage.rows;
 
     // TODO 如何精简
-    int gap = 50;
+    int gap = 20;
     //上下左右四条边界线端点
     Vec4f lineUp(gap, gap, imgW - gap, gap); // up
     Vec4f lineDown(gap, imgH - gap, imgW - gap, imgH - gap); // down
@@ -101,7 +102,7 @@ void Detection::borderHough(Mat inputImage, Mat &outputImage) {
     Vec4f lineRight(imgW - gap - 10, gap, imgW - gap, imgH - gap); // right
 
     //将画面上下两条边加进去
-    int linesNum = 20; // TODO 参数linesNum
+    int linesNum = 10; // TODO 参数linesNum
     vector<Vec4f> lines3SidesUD(lines);
     lines3SidesUD.insert(lines3SidesUD.end(), linesNum, lineUp);
     lines3SidesUD.insert(lines3SidesUD.end(), linesNum, lineDown);
@@ -119,7 +120,11 @@ void Detection::borderHough(Mat inputImage, Mat &outputImage) {
     vector<Vertex> top4vertexSet;
     mostIntersections(lines, top4vertexSet, 4, imgW, imgH);
 
-    cout << "直线最大相交次数：" << top4vertexSet[0].crossTimes << endl;
+    cout << "=========================" << endl;
+    for (int l = 0; l < 4; ++l) {
+        cout << "直线相交次数：" << top4vertexSet[l].crossTimes << endl;
+    }
+    cout << "=========================" << endl;
 
     //判断有几条直线
     if (top4vertexSet[0].crossTimes > 4 * top4vertexSet[1].crossTimes) { // TODO 参数4
@@ -203,7 +208,7 @@ void Detection::borderHough(Mat inputImage, Mat &outputImage) {
             drawLines(vertexResult, outputImage);
             drawPoints(vertexResult, outputImage);
         }
-    } else if (top4vertexSet[0].crossTimes < 100) { // TODO 参数1000
+    } else if (top4vertexSet[0].crossTimes < 50) { // TODO 参数1000
         cout << "只有两条直线，平行" << endl;
         vector<Vertex> top4vertexSet_2;
         mostIntersections(lines2Sides, top4vertexSet_2, 4, imgW, imgH);
@@ -217,10 +222,12 @@ void Detection::borderHough(Mat inputImage, Mat &outputImage) {
             drawPoints(top4vertexSet_2, outputImage);
         }
 
-    } else if (top4vertexSet[0].crossTimes > 4 * top4vertexSet[2].crossTimes) { // TODO 参数4
+    } else if (top4vertexSet[0].crossTimes > 3 * top4vertexSet[2].crossTimes) { // TODO 参数4
         cout << "只有三条直线" << endl;
+        cout << "[" << top4vertexSet[0].x << ", " << top4vertexSet[0].y << "]" << endl;
+        cout << "[" << top4vertexSet[1].x << ", " << top4vertexSet[1].y << "]" << endl;
         vector<Vertex> top6vertexSet;
-        int yGap = 500; // TODO 参数yGap
+        int yGap = 70; // TODO 参数yGap
         if (abs(top4vertexSet[0].y - top4vertexSet[1].y) < yGap) //若两交点y很接近，则取上下边界
             mostIntersections(lines3SidesUD, top6vertexSet, 6, imgW, imgH);
         else
@@ -263,7 +270,7 @@ void Detection::getCrossPointAndIncrement(Vec4f LineA, Vec4f LineB, vector<Verte
     int x = (int) (round)(crossPoint.x);
     int y = (int) (round)(crossPoint.y);
 
-    int VertexGap = 40000; // TODO VerTexGap
+    int VertexGap = 2500; // TODO VerTexGap
 
     if (x >= -imgW / 2 && x <= imgW * 1.5 && y >= -imgH / 2 && y <= imgH * 1.5) { //在图像区域内
         int i = 0;
@@ -391,7 +398,7 @@ void Detection::midFallPointFind() {
         float y = midK * x + midB;
         // midFallPoint2D
         midFallPoint2D.push_back(Point2f(x, y));
-        circle(dstImage, Point2f(x, y), 30, cv::Scalar(0, 255, 0), -1);
+        circle(dstImage, Point2f(x, y), 10, cv::Scalar(0, 255, 0), -1);
     }
 }
 
@@ -443,7 +450,7 @@ void Detection::edgePointFind() {
 void Detection::drawPoints(vector<Vertex> vertexSet, Mat &outputImage) {
     for (int i = 0; i < vertexSet.size(); i++) {
         //        cout << "(" << vertexSet[i].x << "," << vertexSet[i].y << ")" << vertexSet[i].crossTimes << endl;
-        circle(outputImage, Point(vertexSet[i].x, vertexSet[i].y), 30, Scalar(0, 0, 255), -1);
+        circle(outputImage, Point(vertexSet[i].x, vertexSet[i].y), 10, Scalar(0, 0, 255), -1);
     }
 }
 
@@ -477,9 +484,9 @@ void Detection::drawLines(vector<Vertex> top4vertexSet, Mat &outputImage) {
     for (int i = 1; i < 4; i++) {
         if (i != crossPoint) {
             line(outputImage, Point(top4vertexSet[i].x, top4vertexSet[i].y),
-                 Point(top4vertexSet[0].x, top4vertexSet[0].y), Scalar(0, 255, 0), 30, LINE_AA);
+                 Point(top4vertexSet[0].x, top4vertexSet[0].y), Scalar(0, 255, 0), 10, LINE_AA);
             line(outputImage, Point(top4vertexSet[i].x, top4vertexSet[i].y),
-                 Point(top4vertexSet[crossPoint].x, top4vertexSet[crossPoint].y), Scalar(0, 255, 0), 30, LINE_AA);
+                 Point(top4vertexSet[crossPoint].x, top4vertexSet[crossPoint].y), Scalar(0, 255, 0), 10, LINE_AA);
         }
     }
 }
@@ -490,11 +497,11 @@ void Detection::drawBox(vector<Vertex> vertexSet, Mat &outputImage) {
     for (int i = 0; i < vertexSet.size(); i++) {
         Point pt = Point(vertexSet[i].x, vertexSet[i].y);
         Point pt1 = Point(vertexSet[(i + 1) % 3].x, vertexSet[(i + 1) % 3].y);
-        line(outputImage, pt, pt1, Scalar(0, 255, 0), 30);
+        line(outputImage, pt, pt1, Scalar(0, 255, 0), 10);
     }
     for (int i = 0; i < vertexSet.size(); ++i) {
         Point pt = Point(vertexSet[i].x, vertexSet[i].y);
-        circle(outputImage, pt, 30, Scalar(0, 0, 255), -1);
+        circle(outputImage, pt, 10, Scalar(0, 0, 255), -1);
     }
 }
 
@@ -503,8 +510,8 @@ void Detection::drawArmRange() {
     int armL = srcImage.cols / 2 - srcImage.cols / 16; //左边界 //TODO 参数16
     int armR = srcImage.cols / 2 + srcImage.cols / 16; //右边界
 
-    line(dstImage, Point(armL, 0), Point(armL, armHeight / 4), Scalar(0, 255, 0), 20, CV_AA); //画左边的饲料下落边界
-    line(dstImage, Point(armR, 0), Point(armR, armHeight / 4), Scalar(0, 255, 0), 20, CV_AA); //画右边的饲料下落边界
+    line(dstImage, Point(armL, 0), Point(armL, armHeight / 4), Scalar(0, 255, 0), 10, CV_AA); //画左边的饲料下落边界
+    line(dstImage, Point(armR, 0), Point(armR, armHeight / 4), Scalar(0, 255, 0), 10, CV_AA); //画右边的饲料下落边界
 }
 
 void Detection::process_depth(Mat &detectionRes) {
