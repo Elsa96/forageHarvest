@@ -222,7 +222,7 @@ void Detection::borderHough(Mat inputImage, Mat &outputImage) {
             drawPoints(top4vertexSet_2, outputImage);
         }
 
-    } else if (top4vertexSet[0].crossTimes > 3 * top4vertexSet[2].crossTimes) { // TODO 参数4
+    } else if (top4vertexSet[0].crossTimes > 4 * top4vertexSet[2].crossTimes) { // TODO 参数4
         cout << "只有三条直线" << endl;
         cout << "[" << top4vertexSet[0].x << ", " << top4vertexSet[0].y << "]" << endl;
         cout << "[" << top4vertexSet[1].x << ", " << top4vertexSet[1].y << "]" << endl;
@@ -259,6 +259,12 @@ void Detection::borderHough(Mat inputImage, Mat &outputImage) {
 
 // 求直线交点
 void Detection::getCrossPointAndIncrement(Vec4f LineA, Vec4f LineB, vector<Vertex> &vertexSet, int imgW, int imgH) {
+/*    vector<Point2f> endPoint;
+    endPoint.push_back(Point2f(LineA[0],LineA[1]));
+    endPoint.push_back(Point2f(LineA[2],LineA[3]));
+    endPoint.push_back(Point2f(LineB[0],LineB[1]));
+    endPoint.push_back(Point2f(LineB[2],LineB[3]));*/
+
     float ka, kb;
     ka = (LineA[3] - LineA[1]) / (LineA[2] - LineA[0]); //求出LineA斜率
     kb = (LineB[3] - LineB[1]) / (LineB[2] - LineB[0]); //求出LineB斜率
@@ -270,7 +276,19 @@ void Detection::getCrossPointAndIncrement(Vec4f LineA, Vec4f LineB, vector<Verte
     int x = (int) (round)(crossPoint.x);
     int y = (int) (round)(crossPoint.y);
 
-    int VertexGap = 2500; // TODO VerTexGap
+/*    float minCro2EndDistSqu =imgW ;
+    for(int i = 0; i < 4; i++){
+        float distance;
+        distance = powf((crossPoint.x - endPoint[i].x), 2) + powf((crossPoint.y - endPoint[i].y), 2);
+        //distance = sqrtf(distance);
+        minCro2EndDistSqu = min(minCro2EndDistSqu,distance);
+    }
+    if(minCro2EndDistSqu> 900){
+//        cout << "----minCro2EndDist---"<< endl;
+        return ;
+    }*/
+
+    int VertexGap = 10000; // TODO VerTexGap
 
     if (x >= -imgW / 2 && x <= imgW * 1.5 && y >= -imgH / 2 && y <= imgH * 1.5) { //在图像区域内
         int i = 0;
@@ -312,6 +330,10 @@ void Detection::mostIntersections(vector<Vec4f> lines, vector<Vertex> &topVertex
 
 // 验证角点是否为黄色 verifyVertexColor
 void Detection::pointColor(Mat image, vector<Vertex> inputVertexSet, vector<Vertex> &outputVertexSet) {
+    cout << "六个交点的坐标：" << endl;
+    for (int l = 0; l < inputVertexSet.size(); ++l) {
+        cout << "[" << inputVertexSet[l].x << ", " << inputVertexSet[l].y << "]" << endl;
+    }
     int imgW = image.cols;
     int imgH = image.rows;
 
@@ -330,7 +352,7 @@ void Detection::pointColor(Mat image, vector<Vertex> inputVertexSet, vector<Vert
             inputVertexSet[i].y = 0;
         if (y > imgH)
             inputVertexSet[i].y = imgH;
-        int range = 200; // TODO 参数range
+        int range = 100; // TODO 参数range
         int flag = 0;
         //注意不要超出画面边界
         int xMin = x - range;
@@ -340,7 +362,7 @@ void Detection::pointColor(Mat image, vector<Vertex> inputVertexSet, vector<Vert
         if (xMin < 0)
             xMin = 0;
         if (xMin > imgW)
-            xMin = imgW - 10;
+            xMin = imgW - 20;
         if (xMax < 0)
             xMax = 10;
         if (xMax > imgW)
@@ -348,19 +370,32 @@ void Detection::pointColor(Mat image, vector<Vertex> inputVertexSet, vector<Vert
         if (yMin < 0)
             yMin = 0;
         if (yMin > imgH)
-            yMin = imgH - 10;
+            yMin = imgH - 20;
         if (yMax < 0)
-            yMax = 10;
+            yMax = 20;
         if (yMax > imgH)
             yMax = imgH;
         //看交点是否为黄色
-        for (int j = xMin; j < xMax; j = j + 5) {
+/*        for (int j = xMin; j < xMax; j = j + 5) {
             for (int k = yMin; k < yMax; k = k + 5) {
                 cv::Vec3b hsvPoint = hsvImage.at<Vec3b>(k, j);
                 cv::Vec3b hsvInRangeRes;
                 inRange(hsvPoint, hsvMin, hsvMax, hsvInRangeRes); // 在范围内255，否则0
                 int InRangeNum = countNonZero(hsvInRangeRes); // 非零个数
                 if (InRangeNum == 3) { // hsv 都在范围内 返回（255,255,255）
+                    outputVertexSet.push_back(inputVertexSet[i]);
+                    flag = 1;
+                    break;
+                }
+            }
+            if (flag == 1)
+                break;
+        }*/
+        for (int j = xMin; j < xMax; j = j + 5) {
+            for (int k = yMin; k < yMax; k = k + 5) {
+                if (hsvImage.at<Vec3b>(k, j)[0] > hsvMin[0] && hsvImage.at<Vec3b>(k, j)[0] < hsvMax[0]
+                && hsvImage.at<Vec3b>(k, j)[1] > hsvMin[1] && hsvImage.at<Vec3b>(k, j)[1] < hsvMax[1]
+                && hsvImage.at<Vec3b>(k, j)[2] > hsvMin[2] && hsvImage.at<Vec3b>(k, j)[2] < hsvMax[2]){
                     outputVertexSet.push_back(inputVertexSet[i]);
                     flag = 1;
                     break;

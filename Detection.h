@@ -86,7 +86,7 @@ private:
     void midFallPointOverflowLevel();
 
 public:
-    Detection(Mat &image);
+    Detection(Mat &colorImg);
 
     Detection(Mat &colorImg, Mat &depthImg, Mat &depthMap);
 
